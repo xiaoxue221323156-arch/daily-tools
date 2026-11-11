@@ -109,131 +109,140 @@
     <div id="list"></div>
   </div>
 
-  <div class="foot">记录存在家庭服务器上，解锁后三个人看到的是同一份账。</div>
+  <div class="foot">记录保存在这台设备的浏览器里，换设备不互通。</div>
 </div>
 
 <script>
-  var API = '__API_BASE__';
-  var MONTHS = [
-    { key: '2026-11', label: '2026年11月' },
-    { key: '2026-12', label: '2026年12月' },
-    { key: '2027-01', label: '2027年1月' }
-  ];
-  var nowD = new Date();
-  var curKey = (nowD.getFullYear() + '-' + ('0' + (nowD.getMonth() + 1)).slice(-2));
-  if (!MONTHS.some(function (m) { return m.key === curKey; })) curKey = MONTHS[0].key;
+var SALARY = 3000;
+var MONTHS = [
+  { key: '2026-11', label: '2026年11月' },
+  { key: '2026-12', label: '2026年12月' },
+  { key: '2027-01', label: '2027年1月' }
+];
+var STORE_KEY = 'gongzi-v1';
+var data = {};
+try { data = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { data = {}; }
+MONTHS.forEach(function (m) { if (!Array.isArray(data[m.key])) data[m.key] = []; });
 
-  var token = '';
-  try { token = sessionStorage.getItem('pay-token') || ''; } catch (e) {}
-  var state = null;
-  var confirmId = null, confirmTimer = null;
+var now = new Date();
+var nowKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+var current = MONTHS.some(function (m) { return m.key === nowKey; }) ? nowKey : MONTHS[0].key;
+var pendingDelete = -1;
 
-  var gate = document.getElementById('gate');
-  var monthsEl = document.getElementById('months');
-  var listEl = document.getElementById('list');
-  var msgEl = document.getElementById('msg');
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {} }
+function fmt(n) { return '¥' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function monthLabel(key) { for (var i = 0; i < MONTHS.length; i++) if (MONTHS[i].key === key) return MONTHS[i].label; return key; }
+function spent(key) { return data[key].reduce(function (s, r) { return s + r.amount; }, 0); }
+function balance(key) { return SALARY - spent(key); }
 
-  function fmt(n) { return '¥' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-  function msg(t) { msgEl.textContent = t || ''; }
-  function fmtTime(t) {
-    var d = new Date(t);
-    function p(n) { return (n < 10 ? '0' : '') + n; }
-    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
-  }
-  function monthLabel(key) {
-    var m = MONTHS.filter(function (x) { return x.key === key; })[0];
-    return m ? m.label : key;
-  }
+function fmtWhen(ts) {
+  var d = new Date(ts);
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
 
-  function renderMonths() {
-    monthsEl.innerHTML = MONTHS.map(function (m) {
-      return '<button type="button" data-m="' + m.key + '" class="' + (m.key === curKey ? 'active' : '') + '">' + m.label + '</button>';
-    }).join('');
-  }
-  monthsEl.addEventListener('click', function (ev) {
-    var b = ev.target.closest('[data-m]'); if (!b) return;
-    curKey = b.getAttribute('data-m');
-    confirmId = null; msg('');
-    renderMonths(); loadWage();
+function render() {
+  var box = document.getElementById('months');
+  box.innerHTML = '';
+  MONTHS.forEach(function (m) {
+    var b = document.createElement('button');
+    b.textContent = m.label;
+    if (m.key === current) b.className = 'active';
+    b.onclick = function () { current = m.key; pendingDelete = -1; setMsg(''); render(); };
+    box.appendChild(b);
   });
 
-  function renderWage() {
-    if (!state) return;
-    document.getElementById('balLabel').textContent = monthLabel(curKey) + ' · 本月余额';
-    document.getElementById('balance').textContent = fmt(state.balance);
-    document.getElementById('balSub').textContent = '固定工资 ' + fmt(state.cap) + ' · 已提现 ' + fmt(state.total) + ' · 共 ' + state.items.length + ' 笔 · 全家同步';
-    document.getElementById('detailTitle').textContent = monthLabel(curKey) + ' · 提现明细';
-    if (!state.items.length) { listEl.innerHTML = '<div class="empty">这个月还没有提现记录。</div>'; return; }
-    listEl.innerHTML = state.items.slice().slice().reverse().map(function (x) {
-      var del = confirmId === x.id
-        ? '<button class="del confirm" data-del="' + x.id + '">再点一次确认删除</button>'
-        : '<button class="del" data-del="' + x.id + '">删除</button>';
-      return '<div class="item"><span class="when">' + fmtTime(x.time) + '</span><span class="amt">−' + fmt(x.amount) + '</span>' + del + '</div>';
-    }).join('');
+  document.getElementById('balLabel').textContent = monthLabel(current) + ' · 本月余额';
+  document.getElementById('balance').textContent = fmt(balance(current));
+  document.getElementById('balSub').textContent =
+    '固定工资 ' + fmt(SALARY) + ' · 已提现 ' + fmt(spent(current)) + ' · 共 ' + data[current].length + ' 笔';
+
+  document.getElementById('detailTitle').textContent =
+    monthLabel(current) + ' 提现明细（合计 ' + fmt(spent(current)) + '）';
+
+  var list = document.getElementById('list');
+  list.innerHTML = '';
+  if (data[current].length === 0) {
+    var e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '这个月还没有提现记录';
+    list.appendChild(e);
+    return;
   }
-
-  function authHeaders() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }; }
-  function showGate() { gate.style.display = 'flex'; }
-  function hideGate() { gate.style.display = 'none'; }
-
-  function loadWage() {
-    if (!token) { showGate(); return; }
-    fetch(API + '/api/wage?month=' + curKey, { headers: authHeaders() })
-      .then(function (r) { return r.json().then(function (d) { return { status: r.status, d: d }; }); })
-      .then(function (res) {
-        if (res.status === 401) { token = ''; try { sessionStorage.removeItem('pay-token'); } catch (e) {} showGate(); return; }
-        if (res.d.ok) { state = res.d; renderWage(); }
-      })
-      .catch(function () { msg('连不上服务器，检查网络后刷新'); });
-  }
-
-  function tryUnlock() {
-    var code = document.getElementById('gateInput').value.trim();
-    var gm = document.getElementById('gateMsg');
-    fetch(API + '/api/unlock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
-      .then(function (r) { return r.json(); }).then(function (d) {
-        if (d.ok && d.token) {
-          token = d.token;
-          try { sessionStorage.setItem('pay-token', token); } catch (e) {}
-          gm.textContent = '';
-          hideGate(); loadWage();
-        } else { gm.textContent = '编码不正确'; }
-      }).catch(function () { gm.textContent = '连不上服务器，检查网络后再试'; });
-  }
-  document.getElementById('gateGo').addEventListener('click', tryUnlock);
-  document.getElementById('gateInput').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') tryUnlock(); });
-
-  document.getElementById('withdrawBtn').addEventListener('click', function () {
-    var amount = Math.round(Number(document.getElementById('amount').value) * 100) / 100;
-    if (!(amount > 0)) { msg('先输入提现金额'); return; }
-    fetch(API + '/api/wage', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ month: curKey, amount: amount }) })
-      .then(function (r) { return r.json(); }).then(function (d) {
-        if (d.ok) { state = d; document.getElementById('amount').value = ''; msg('已提现 ' + fmt(amount)); renderWage(); }
-        else if (d.error === 'exceeds') { msg('超过本月余额了，还剩 ' + fmt(d.balance)); }
-        else if (d.error === 'locked') { showGate(); }
-        else { msg('没提上，请稍后重试'); }
-      }).catch(function () { msg('连不上服务器，检查网络后再试'); });
+  var rows = data[current].slice().reverse();
+  rows.forEach(function (r) {
+    var idx = data[current].indexOf(r);
+    var div = document.createElement('div');
+    div.className = 'item';
+    var when = document.createElement('span');
+    when.className = 'when';
+    when.textContent = fmtWhen(r.ts);
+    var amt = document.createElement('span');
+    amt.className = 'amt';
+    amt.textContent = '−' + fmt(r.amount);
+    var del = document.createElement('button');
+    del.className = 'del' + (pendingDelete === idx ? ' confirm' : '');
+    del.textContent = pendingDelete === idx ? '确认删除' : '删除';
+    del.onclick = function () {
+      if (pendingDelete === idx) {
+        data[current].splice(idx, 1);
+        pendingDelete = -1;
+        save();
+        setMsg('已删除，金额退回余额');
+        render();
+      } else {
+        pendingDelete = idx;
+        render();
+      }
+    };
+    div.appendChild(when); div.appendChild(amt); div.appendChild(del);
+    list.appendChild(div);
   });
-  document.getElementById('allBtn').addEventListener('click', function () {
-    if (state) document.getElementById('amount').value = state.balance > 0 ? state.balance : '';
-  });
+}
 
-  listEl.addEventListener('click', function (ev) {
-    var del = ev.target.closest('[data-del]'); if (!del) return;
-    var id = del.getAttribute('data-del');
-    if (confirmId === id) {
-      confirmId = null;
-      fetch(API + '/api/wage', { method: 'DELETE', headers: authHeaders(), body: JSON.stringify({ month: curKey, id: id }) })
-        .then(function (r) { return r.json(); }).then(function (d) { if (d.ok) { state = d; renderWage(); msg('已删除，金额退回余额'); } });
-    } else {
-      confirmId = id; renderWage();
-      clearTimeout(confirmTimer);
-      confirmTimer = setTimeout(function () { confirmId = null; renderWage(); }, 2500);
+function setMsg(t) { document.getElementById('msg').textContent = t; }
+
+document.getElementById('withdrawBtn').onclick = function () {
+  var input = document.getElementById('amount');
+  var v = parseFloat(input.value);
+  if (isNaN(v) || v <= 0) { setMsg('先输入一个大于 0 的金额'); return; }
+  v = Math.round(v * 100) / 100;
+  var bal = balance(current);
+  if (v > bal) { setMsg('这个月只剩 ' + fmt(bal) + '，提现金额超过余额了'); return; }
+  data[current].push({ amount: v, ts: Date.now() });
+  save();
+  input.value = '';
+  pendingDelete = -1;
+  setMsg('已提现 ' + fmt(v));
+  render();
+};
+document.getElementById('allBtn').onclick = function () {
+  var bal = balance(current);
+  document.getElementById('amount').value = bal > 0 ? bal : '';
+  if (bal <= 0) setMsg('这个月已经提完了');
+};
+
+render();
+</script>
+<script>
+  (function () {
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem('pay-unlocked') === '1'; } catch (e) {}
+    if (unlocked) return;
+    var gate = document.getElementById('gate');
+    gate.style.display = 'flex';
+    function tryCode() {
+      var v = document.getElementById('gateInput').value.trim();
+      if (v === 'muyuzuiniubi') {
+        try { sessionStorage.setItem('pay-unlocked', '1'); } catch (e) {}
+        gate.style.display = 'none';
+      } else {
+        document.getElementById('gateMsg').textContent = '编码不正确';
+      }
     }
-  });
-
-  renderMonths();
-  if (token) { hideGate(); loadWage(); } else { showGate(); }
+    document.getElementById('gateGo').addEventListener('click', tryCode);
+    document.getElementById('gateInput').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') tryCode(); });
+  })();
 </script>
 </body>
 </html>

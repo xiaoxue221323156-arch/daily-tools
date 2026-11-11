@@ -154,27 +154,24 @@
 
 <script>
   (function () {
-    var API = '__API_BASE__';
     var entry = document.getElementById('payEntry');
     var gate = document.getElementById('payGate');
     function unlock() { entry.style.display = ''; gate.style.display = 'none'; }
-    var hasToken = false;
-    try { hasToken = !!sessionStorage.getItem('pay-token'); } catch (e) {}
-    if (hasToken) { unlock(); return; }
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem('pay-unlocked') === '1'; } catch (e) {}
+    if (unlocked) { unlock(); return; }
     document.getElementById('plusBtn').addEventListener('click', function () {
       document.getElementById('codeBox').style.display = '';
       document.getElementById('codeInput').focus();
     });
     function tryCode() {
       var v = document.getElementById('codeInput').value.trim();
-      var msgEl = document.getElementById('codeMsg');
-      fetch(API + '/api/unlock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: v }) })
-        .then(function (r) { return r.json(); }).then(function (d) {
-          if (d.ok && d.token) {
-            try { sessionStorage.setItem('pay-token', d.token); } catch (e) {}
-            unlock();
-          } else { msgEl.textContent = '编码不正确'; }
-        }).catch(function () { msgEl.textContent = '连不上服务器，检查网络后再试'; });
+      if (v === 'muyuzuiniubi') {
+        try { sessionStorage.setItem('pay-unlocked', '1'); } catch (e) {}
+        unlock();
+      } else {
+        document.getElementById('codeMsg').textContent = '编码不正确';
+      }
     }
     document.getElementById('codeGo').addEventListener('click', tryCode);
     document.getElementById('codeInput').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') tryCode(); });

@@ -62,71 +62,71 @@
     <div id="list"></div>
   </div>
 
-  <div class="foot">待办存在家庭服务器上，三个人在各自手机上看到的是同一份。</div>
+  <div class="foot">待办保存在这台设备的浏览器里，换设备不互通。</div>
 </div>
 
 <script>
-  var API = '__API_BASE__';
-  var listEl = document.getElementById('list');
-  var countEl = document.getElementById('count');
-  var input = document.getElementById('newItem');
-  var msgEl = document.getElementById('msg');
-  var items = [];
-  var confirmId = null, confirmTimer = null;
+var STORE_KEY = 'family-todos-v1';
+var items = [];
+try { items = JSON.parse(localStorage.getItem(STORE_KEY) || '[]') || []; } catch (e) { items = []; }
+if (!Array.isArray(items)) items = [];
+var pendingDelete = -1;
 
-  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function msg(t) { msgEl.textContent = t || ''; }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(items)); } catch (e) {} }
+function setMsg(t) { document.getElementById('msg').textContent = t; }
 
-  function render() {
-    var done = items.filter(function (x) { return x.done; }).length;
-    countEl.innerHTML = '已完成 <b>' + done + '</b> / 共 <b>' + items.length + '</b> 件 · 全家同步';
-    if (!items.length) { listEl.innerHTML = '<div class="empty">暂无待办。在上方输入一件关键待办，点「添加」或回车，它会生成带勾选框的一条。</div>'; return; }
-    listEl.innerHTML = items.map(function (x) {
-      var del = confirmId === x.id
-        ? '<button class="del confirm" data-del="' + x.id + '">再点一次确认删除</button>'
-        : '<button class="del" data-del="' + x.id + '">删除</button>';
-      return '<div class="item' + (x.done ? ' done' : '') + '">' +
-        '<button class="tick" data-tick="' + x.id + '" aria-label="完成打勾">✓</button>' +
-        '<div class="txt">' + esc(x.text) + '</div>' + del + '</div>';
-    }).join('');
+function render() {
+  var done = items.filter(function (i) { return i.done; }).length;
+  document.getElementById('count').innerHTML =
+    items.length === 0 ? '还没有待办，在上面写下第一件' :
+    '已完成 <b>' + done + '</b> / 共 ' + items.length + ' 件';
+  var list = document.getElementById('list');
+  list.innerHTML = '';
+  if (items.length === 0) {
+    var e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '清单是空的';
+    list.appendChild(e);
+    return;
   }
-
-  function call(opts) {
-    return fetch(API + '/api/todos', opts).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.ok) { items = d.items; render(); } else { msg('服务器没应答，请稍后重试'); }
-    }).catch(function () { msg('连不上服务器，检查网络后再试'); });
-  }
-  function load() { call({}); }
-  function add() {
-    var text = input.value.trim();
-    if (!text) { msg('先输入一件待办'); input.focus(); return; }
-    input.value = ''; msg('');
-    call({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', text: text }) });
-  }
-  document.getElementById('addBtn').addEventListener('click', add);
-  input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') add(); });
-
-  listEl.addEventListener('click', function (ev) {
-    var tick = ev.target.closest('[data-tick]');
-    var del = ev.target.closest('[data-del]');
-    if (tick) {
-      call({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'toggle', id: tick.getAttribute('data-tick') }) });
-    }
-    if (del) {
-      var id = del.getAttribute('data-del');
-      if (confirmId === id) {
-        confirmId = null;
-        call({ method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
-      } else {
-        confirmId = id; render();
-        clearTimeout(confirmTimer);
-        confirmTimer = setTimeout(function () { confirmId = null; render(); }, 2500);
-      }
-    }
+  items.forEach(function (item, idx) {
+    var div = document.createElement('div');
+    div.className = 'item' + (item.done ? ' done' : '');
+    var tick = document.createElement('button');
+    tick.className = 'tick';
+    tick.textContent = '✓';
+    tick.setAttribute('aria-label', '打勾');
+    tick.onclick = function () { item.done = !item.done; save(); render(); };
+    var txt = document.createElement('span');
+    txt.className = 'txt';
+    txt.textContent = item.text;
+    var del = document.createElement('button');
+    del.className = 'del' + (pendingDelete === idx ? ' confirm' : '');
+    del.textContent = pendingDelete === idx ? '确认删除' : '删除';
+    del.onclick = function () {
+      if (pendingDelete === idx) { items.splice(idx, 1); pendingDelete = -1; save(); render(); }
+      else { pendingDelete = idx; render(); }
+    };
+    div.appendChild(tick); div.appendChild(txt); div.appendChild(del);
+    list.appendChild(div);
   });
+}
 
+function add() {
+  var input = document.getElementById('newItem');
+  var v = input.value.trim();
+  if (!v) { setMsg('先写点什么再添加'); return; }
+  items.push({ text: v, done: false, ts: Date.now() });
+  save();
+  input.value = '';
+  setMsg('');
   render();
-  load();
+  input.focus();
+}
+document.getElementById('addBtn').onclick = add;
+document.getElementById('newItem').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') add(); });
+
+render();
 </script>
 </body>
 </html>

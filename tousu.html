@@ -70,93 +70,97 @@
     <div id="board"></div>
   </div>
 
-  <div class="foot">公告板存在家庭服务器上，三个人在各自手机上看到的是同一面公告板。</div>
+  <div class="foot">公告板保存在这台设备的浏览器里，换设备不互通。</div>
 </div>
 
 <script>
-  var API = '__API_BASE__';
-  var WHOS = ['白熊', '鲨鱼', '暮鱼'];
-  var WHYS = ['情感', '工作', '认知'];
-  var who = '', why = '';
-  var items = [];
-  var confirmId = null, confirmTimer = null;
-  var boardEl = document.getElementById('board');
-  var msgEl = document.getElementById('msg');
+var PEOPLE = ['白熊', '鲨鱼', '暮鱼'];
+var REASONS = ['情感', '工作', '认知'];
+var STORE_KEY = 'family-complaints-v1';
+var posts = [];
+try { posts = JSON.parse(localStorage.getItem(STORE_KEY) || '[]') || []; } catch (e) { posts = []; }
+if (!Array.isArray(posts)) posts = [];
+var who = '', why = '', pendingDelete = -1;
 
-  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function msg(t) { msgEl.textContent = t || ''; }
-  function fmtTime(t) {
-    var d = new Date(t);
-    function p(n) { return (n < 10 ? '0' : '') + n; }
-    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
-  }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(posts)); } catch (e) {} }
+function setMsg(t) { document.getElementById('msg').textContent = t; }
 
-  function buildChips(elId, values, get, set) {
-    var el = document.getElementById(elId);
-    el.innerHTML = values.map(function (v) {
-      return '<button type="button" data-v="' + v + '" class="' + (get() === v ? 'active' : '') + '">' + v + '</button>';
-    }).join('');
-    el.addEventListener('click', function (ev) {
-      var b = ev.target.closest('[data-v]'); if (!b) return;
-      set(b.getAttribute('data-v'));
-      el.querySelectorAll('button').forEach(function (x) { x.classList.toggle('active', x.getAttribute('data-v') === get()); });
-    });
-  }
-  buildChips('whoChips', WHOS, function () { return who; }, function (v) { who = v; });
-  buildChips('whyChips', WHYS, function () { return why; }, function (v) { why = v; });
-
-  function render() {
-    if (!items.length) { boardEl.innerHTML = '<div class="empty">公告板还空着，没有投诉。</div>'; return; }
-    boardEl.innerHTML = items.map(function (x) {
-      var del = confirmId === x.id
-        ? '<button class="del confirm" data-del="' + x.id + '">再点一次确认删除</button>'
-        : '<button class="del" data-del="' + x.id + '">删除</button>';
-      return '<div class="post"><div class="meta">' +
-        '<span class="tag who">被投诉：' + esc(x.target) + '</span>' +
-        '<span class="tag">' + esc(x.reason) + '</span>' +
-        '<span class="when">' + fmtTime(x.time) + '</span></div>' +
-        '<div class="body">' + esc(x.text) + '</div>' + del + '</div>';
-    }).join('');
-  }
-
-  function call(opts) {
-    return fetch(API + '/api/complaints', opts).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.ok) { items = d.items; render(); } else { msg('服务器没应答，请稍后重试'); }
-    }).catch(function () { msg('连不上服务器，检查网络后再试'); });
-  }
-  function load() { call({}); }
-
-  document.getElementById('submitBtn').addEventListener('click', function () {
-    var text = document.getElementById('content').value.trim();
-    if (!who) { msg('先选被投诉人'); return; }
-    if (!why) { msg('再选投诉原因'); return; }
-    if (!text) { msg('投诉内容还没写'); return; }
-    msg('');
-    fetch(API + '/api/complaints', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: who, reason: why, text: text }) })
-      .then(function (r) { return r.json(); }).then(function (d) {
-        if (d.ok) {
-          items = d.items; render();
-          document.getElementById('content').value = '';
-          msg('已匿名贴到公告板');
-        } else { msg('没贴上，请稍后重试'); }
-      }).catch(function () { msg('连不上服务器，检查网络后再试'); });
+function buildChips(boxId, options, get, set) {
+  var box = document.getElementById(boxId);
+  box.innerHTML = '';
+  options.forEach(function (opt) {
+    var b = document.createElement('button');
+    b.textContent = opt;
+    if (get() === opt) b.className = 'active';
+    b.onclick = function () { set(opt); pendingDelete = -1; render(); };
+    box.appendChild(b);
   });
+}
 
-  boardEl.addEventListener('click', function (ev) {
-    var del = ev.target.closest('[data-del]'); if (!del) return;
-    var id = del.getAttribute('data-del');
-    if (confirmId === id) {
-      confirmId = null;
-      call({ method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
-    } else {
-      confirmId = id; render();
-      clearTimeout(confirmTimer);
-      confirmTimer = setTimeout(function () { confirmId = null; render(); }, 2500);
-    }
+function fmtWhen(ts) {
+  var d = new Date(ts);
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function render() {
+  buildChips('whoChips', PEOPLE, function () { return who; }, function (v) { who = v; });
+  buildChips('whyChips', REASONS, function () { return why; }, function (v) { why = v; });
+
+  var board = document.getElementById('board');
+  board.innerHTML = '';
+  if (posts.length === 0) {
+    var e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '公告板还空着，海面上风平浪静';
+    board.appendChild(e);
+    return;
+  }
+  posts.slice().reverse().forEach(function (p) {
+    var idx = posts.indexOf(p);
+    var div = document.createElement('div');
+    div.className = 'post';
+    var meta = document.createElement('div');
+    meta.className = 'meta';
+    var whoTag = document.createElement('span');
+    whoTag.className = 'tag who';
+    whoTag.textContent = '被投诉：' + p.who;
+    var whyTag = document.createElement('span');
+    whyTag.className = 'tag';
+    whyTag.textContent = p.why;
+    var when = document.createElement('span');
+    when.className = 'when';
+    when.textContent = fmtWhen(p.ts);
+    meta.appendChild(whoTag); meta.appendChild(whyTag); meta.appendChild(when);
+    var body = document.createElement('div');
+    body.className = 'body';
+    body.textContent = p.content;
+    var del = document.createElement('button');
+    del.className = 'del' + (pendingDelete === idx ? ' confirm' : '');
+    del.textContent = pendingDelete === idx ? '确认删除' : '删除';
+    del.onclick = function () {
+      if (pendingDelete === idx) { posts.splice(idx, 1); pendingDelete = -1; save(); render(); }
+      else { pendingDelete = idx; render(); }
+    };
+    div.appendChild(meta); div.appendChild(body); div.appendChild(del);
+    board.appendChild(div);
   });
+}
 
+document.getElementById('submitBtn').onclick = function () {
+  var content = document.getElementById('content').value.trim();
+  if (!who) { setMsg('先选被投诉人：白熊 / 鲨鱼 / 暮鱼'); return; }
+  if (!why) { setMsg('再选投诉原因：情感 / 工作 / 认知'); return; }
+  if (!content) { setMsg('投诉内容还没写'); return; }
+  posts.push({ who: who, why: why, content: content, ts: Date.now() });
+  save();
+  document.getElementById('content').value = '';
+  who = ''; why = ''; pendingDelete = -1;
+  setMsg('已匿名贴到公告板');
   render();
-  load();
+};
+
+render();
 </script>
 </body>
 </html>
