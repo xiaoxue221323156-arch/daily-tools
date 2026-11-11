@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>工资条 · 小鱼小鲨鱼小熊家庭十年成长计划</title>
+<title>工资条 · 小鲨鱼小鱼小熊家庭十年成长计划</title>
 <link rel="icon" href="icon.webp">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -54,14 +54,35 @@
   .item .del.confirm { background: #b3543f; color: #fff; border-color: #b3543f; }
   .empty { text-align: center; color: rgba(159,212,245,.6); font-size: 14px; padding: 18px 0 6px; }
   .foot { text-align: center; font-size: 12px; color: rgba(159,212,245,.55); margin-top: 10px; line-height: 1.8; }
+  #gate { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 22px; background: linear-gradient(180deg, #062a4d, #02101f); }
+  #gate .gcard { width: 100%; max-width: 340px; text-align: center; background: linear-gradient(165deg, rgba(16,68,116,.55), rgba(7,36,66,.8)); border: 1px solid rgba(140,220,255,.25); border-radius: 18px; padding: 30px 22px 24px; box-shadow: 0 20px 44px rgba(0,0,0,.5); }
+  #gate img { width: 74px; height: 74px; border-radius: 19px; margin-bottom: 16px; }
+  #gate .gt { font-size: 16px; letter-spacing: 2px; color: #eaf6ff; margin-bottom: 16px; }
+  #gate .grow { display: flex; gap: 8px; }
+  #gate input { flex: 1; min-width: 0; font-size: 15px; padding: 11px; border-radius: 10px; background: rgba(3,20,40,.7); border: 1px solid rgba(140,220,255,.35); color: #fff; }
+  #gate button { padding: 11px 18px; font-size: 15px; border: none; border-radius: 10px; background: linear-gradient(145deg, #1283b8, #0a5d8f); color: #fff; cursor: pointer; font-weight: 700; }
+  #gate .gmsg { min-height: 17px; font-size: 12.5px; color: #ffd166; margin-top: 10px; }
+  #gate a { display: inline-block; margin-top: 12px; font-size: 12.5px; color: #9fd4f5; }
 </style>
 </head>
 <body>
+<div id="gate" style="display:none">
+  <div class="gcard">
+    <img src="icon.webp" alt="虎鲸图标">
+    <div class="gt">请输入特殊编码</div>
+    <div class="grow">
+      <input id="gateInput" type="text" placeholder="请输入特殊编码" autocomplete="off">
+      <button id="gateGo">进入</button>
+    </div>
+    <div class="gmsg" id="gateMsg"></div>
+    <a href="index.html">← 回到书里</a>
+  </div>
+</div>
 <div class="wrap">
   <div class="hero"></div>
   <div class="brand">
     <img src="icon.webp" alt="虎鲸图标">
-    <div class="name"><b>小鱼 · 小鲨鱼 · 小熊</b><br>家庭十年成长计划</div>
+    <div class="name"><b>小鲨鱼 · 小鱼 · 小熊</b><br>家庭十年成长计划</div>
     <a class="back" href="index.html">← 回到书里</a>
   </div>
 
@@ -202,6 +223,26 @@ document.getElementById('allBtn').onclick = function () {
 };
 
 render();
+</script>
+<script>
+  (function () {
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem('pay-unlocked') === '1'; } catch (e) {}
+    if (unlocked) return;
+    var gate = document.getElementById('gate');
+    gate.style.display = 'flex';
+    function tryCode() {
+      var v = document.getElementById('gateInput').value.trim();
+      if (v === 'muyuzuiniubi') {
+        try { sessionStorage.setItem('pay-unlocked', '1'); } catch (e) {}
+        gate.style.display = 'none';
+      } else {
+        document.getElementById('gateMsg').textContent = '编码不正确';
+      }
+    }
+    document.getElementById('gateGo').addEventListener('click', tryCode);
+    document.getElementById('gateInput').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') tryCode(); });
+  })();
 </script>
 </body>
 </html>
