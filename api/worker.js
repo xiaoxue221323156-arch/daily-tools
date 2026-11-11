@@ -149,6 +149,10 @@ export default {
           const task = String(body.task || "");
           if (!task) return json({ ok: false, error: "bad_task" }, 400);
           if (body.done) checks[task] = true; else delete checks[task];
+        } else if (req.method === "POST" && body.action === "setAll") {
+          const raw = body.checks && typeof body.checks === "object" ? body.checks : {};
+          checks = {};
+          Object.keys(raw).forEach((k) => { if (raw[k]) checks[k] = true; });
         } else if (req.method === "POST" && body.action === "clear") {
           checks = {};
         } else {
