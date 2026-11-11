@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>每日打勾日程</title>
+<style>
+  :root{
+    --bg:#f4f3ef;
+    --surface:#ffffff;
+    --surface-2:#eceee9;
+    --ink:#1c2320;
+    --ink-2:#5b6660;
+    --ink-3:#8a948e;
+    --line:#dde0d9;
+    --line-strong:#c9cdc3;
+    --teal:#0e6b5e;
+    --teal-soft:#e2efec;
+    --amber:#9a6a12;
+    --amber-soft:#f7ecd2;
+    --blue:#2456a6;
+    --blue-soft:#e3eaf7;
+    --rose:#9c3d54;
+    --rose-soft:#f7e6ea;
+    --green:#2e7d46;
+    --shadow:0 1px 2px rgba(28,35,32,.05), 0 8px 24px rgba(28,35,32,.05);
+    --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#141716;
+      --surface:#1e2220;
+      --surface-2:#262b28;
+      --ink:#eef1ee;
+      --ink-2:#aeb8b2;
+      --ink-3:#7e8a83;
+      --line:#303633;
+      --line-strong:#3d4540;
+      --teal:#5ec9b6;
+      --teal-soft:#1d3531;
+      --amber:#e4b95c;
+      --amber-soft:#3a311c;
+      --blue:#8db4f2;
+      --blue-soft:#22304d;
+      --rose:#e79aab;
+      --rose-soft:#3d2730;
+      --green:#7ed19b;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    line-height:1.55;
+  }
+  button{min-height:44px}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+
+  /* ---------- header ---------- */
+  .date-line{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin-bottom:6px;
+  }
+  .date-line .today{
+    font-family:"Songti SC","STSong","SimSun",serif;
+    font-size:28px;font-weight:700;letter-spacing:.02em;line-height:1.25;
+  }
+  .date-line .weekday{font-size:15px;color:var(--ink-2);font-weight:600}
+  .subline{color:var(--ink-2);font-size:14px;margin:0 0 18px}
+  .subline strong{color:var(--ink)}
+
+  /* date navigation — swipe / buttons / strip */
+  .date-nav{display:flex;align-items:flex-start;gap:8px;margin-bottom:4px}
+  .date-nav-btn{
+    appearance:none;flex:0 0 auto;width:44px;height:44px;border-radius:50%;
+    border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
+    font-size:26px;line-height:1;cursor:pointer;font-family:inherit;display:grid;place-items:center;
+    box-shadow:var(--shadow);margin-top:2px;
+  }
+  .date-nav-btn:active{background:var(--surface-2)}
+  .date-center{flex:1;min-width:0;text-align:center}
+  .date-center .today{
+    font-family:"Songti SC","STSong","SimSun",serif;
+    font-size:28px;font-weight:700;letter-spacing:.02em;line-height:1.25;
+    display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;
+  }
+  .date-star{font-size:24px;color:#d8d2c4;line-height:1;transition:transform .25s ease,color .2s}
+  .date-star.earned{color:#e9a820;text-shadow:0 1px 8px rgba(233,168,32,.45)}
+  @media (prefers-color-scheme: dark){ .date-star{color:#4a4232} .date-star.earned{color:#f2bd45} }
+  .date-sub{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:2px;font-size:13.5px;color:var(--ink-2)}
+  .back-today{
+    appearance:none;border:none;background:var(--teal-soft);color:var(--teal);
+    border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;min-height:32px;
+  }
+  .back-today[hidden]{display:none}
+  .swipe-hint{text-align:center;font-size:12.5px;color:var(--ink-3);margin:6px 0 0}
+  .week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:12px 0 18px}
+  .day-cell{
+    appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:12px;padding:7px 2px 6px;cursor:pointer;font-family:inherit;text-align:center;
+    box-shadow:var(--shadow);min-height:58px;
+  }
+  .day-cell .d-wd{display:block;font-size:11.5px;color:var(--ink-2);font-weight:600}
+  .day-cell .d-num{display:block;font-size:17px;font-weight:800;line-height:1.25;font-variant-numeric:tabular-nums}
+  .day-cell .d-star{display:block;font-size:12px;line-height:1.1;color:#e9a820;height:14px}
+  .day-cell .d-star.empty{color:transparent}
+  .day-cell.is-selected{border-color:var(--teal);outline:2px solid var(--teal);outline-offset:-1px}
+  .day-cell.is-today .d-num{color:var(--teal)}
+  .day-cell:active{background:var(--surface-2)}
+  .wrap.swiping{cursor:grabbing}
+  .slide-hint{animation:none}
+  @keyframes starPop{0%{transform:scale(.4) rotate(-18deg)}55%{transform:scale(1.45) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
+  .star-pop{animation:starPop .55s ease}
+
+  .progress-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px 18px 14px;margin-bottom:22px;
+  }
+  .progress-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .progress-top .big{font-size:26px;font-weight:800;letter-spacing:-.01em}
+  .progress-top .big small{font-size:15px;font-weight:600;color:var(--ink-2)}
+  .progress-top .pct{font-size:15px;font-weight:700;color:var(--teal)}
+  .bar{height:10px;border-radius:999px;background:var(--surface-2);margin:10px 0 10px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0%;border-radius:999px;background:var(--teal);transition:width .35s ease}
+  .progress-meta{display:flex;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+  .progress-meta span{background:var(--surface-2);border-radius:999px;padding:3px 10px}
+  .progress-meta span.done{color:var(--teal);font-weight:700}
+  .all-done{
+    display:none;margin-top:12px;padding:10px 12px;border-radius:10px;
+    background:var(--amber-soft);color:var(--amber);font-weight:700;font-size:14.5px;text-align:center;
+  }
+  .all-done.show{display:block}
+  .star-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin-top:12px;padding:12px 14px;border:1px dashed var(--line-strong);border-radius:12px;
+    background:var(--surface-2);
+  }
+  .star-row.earned{border:1px solid #e9a820;background:var(--amber-soft)}
+  .star-main{display:flex;align-items:center;gap:10px;min-width:0}
+  .star-big{font-size:34px;line-height:1;color:#cfc9b8;flex:0 0 auto}
+  .star-row.earned .star-big{color:#e9a820;text-shadow:0 2px 10px rgba(233,168,32,.4)}
+  @media (prefers-color-scheme: dark){ .star-big{color:#4a4232} .star-row.earned .star-big{color:#f2bd45} }
+  .star-title{font-weight:800;font-size:15.5px;line-height:1.3}
+  .star-sub{font-size:12.5px;color:var(--ink-2);line-height:1.35}
+  .star-count{font-size:13px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+  .star-count strong{color:#c98a0a;font-size:15px}
+  @media (prefers-color-scheme: dark){ .star-count strong{color:#f2bd45} }
+
+  /* ---------- sections ---------- */
+  .section-head{margin:26px 0 6px}
+  .section-head h2{
+    font-family:"Songti SC","STSong","SimSun",serif;
+    font-size:20px;margin:0;line-height:1.3;
+  }
+  .section-head p{margin:2px 0 0;color:var(--ink-2);font-size:13.5px}
+
+  /* timeline */
+  .timeline{position:relative;margin-top:12px;padding-left:22px}
+  .timeline::before{
+    content:"";position:absolute;left:6px;top:14px;bottom:14px;width:2px;
+    background:var(--line-strong);border-radius:2px;
+  }
+  .slot{position:relative;margin-bottom:14px}
+  .slot::before{
+    content:"";position:absolute;left:-22px;top:22px;width:14px;height:14px;border-radius:50%;
+    background:var(--bg);border:3px solid var(--line-strong);z-index:1;
+  }
+  .slot.now::before{border-color:var(--teal);background:var(--teal)}
+  .slot.finished::before{border-color:var(--teal);background:var(--teal)}
+  .slot-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .slot.now .slot-card{border-color:var(--teal)}
+  .slot-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    padding:12px 16px 0;
+  }
+  .time-badge{
+    font-variant-numeric:tabular-nums;font-weight:800;font-size:17px;letter-spacing:.01em;
+  }
+  .time-badge small{font-size:13px;font-weight:600;color:var(--ink-2)}
+  .status{
+    font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap;
+  }
+  .status.todo{background:var(--surface-2);color:var(--ink-2)}
+  .status.now{background:var(--teal);color:#fff}
+  @media (prefers-color-scheme: dark){ .status.now{color:#0c2420} }
+  .status.past{background:var(--surface-2);color:var(--ink-3)}
+  .status.done{background:var(--teal-soft);color:var(--teal)}
+  .slot-rule{padding:2px 16px 4px;color:var(--ink-2);font-size:13.5px}
+  .slot-rule strong{color:var(--ink)}
+
+  /* check rows */
+  .task{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 16px;min-height:64px;cursor:pointer;
+    border-top:1px solid var(--line);
+    -webkit-tap-highlight-color:transparent;user-select:none;
+  }
+  .task:active{background:var(--surface-2)}
+  .task input,.quota input{
+    appearance:none;-webkit-appearance:none;margin:0;cursor:pointer;flex:0 0 auto;
+    width:30px;height:30px;border-radius:9px;
+    border:2px solid var(--line-strong);background-color:var(--surface);
+    background-repeat:no-repeat;background-position:center;background-size:17px 17px;
+    transition:background-color .15s,border-color .15s;
+  }
+  .task input:checked,.quota input:checked{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12.5 L10 18 L20 6' stroke='white' stroke-width='3.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+  .task input:checked{background-color:var(--teal);border-color:var(--teal)}
+  .task input:focus-visible,.quota input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .task .txt{flex:1;min-width:0}
+  .task .name{font-size:17px;font-weight:700;line-height:1.35}
+  .task .desc{font-size:13px;color:var(--ink-2);margin-top:1px}
+  .task .dur{
+    flex:0 0 auto;font-size:13px;font-weight:700;color:var(--ink-2);
+    background:var(--surface-2);border-radius:8px;padding:4px 9px;font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .task input:checked ~ .txt .name{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:2px}
+  .task input:checked ~ .dur{background:var(--teal-soft);color:var(--teal)}
+
+  /* teacher section */
+  .plain-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:hidden;margin-top:12px;
+  }
+  .plain-card .task:first-child{border-top:none}
+
+  /* free quota */
+  .quota-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  @media (max-width:420px){ .quota-grid{grid-template-columns:1fr 1fr} }
+  .quota{
+    display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:12px 14px;min-height:64px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .quota:active{background:var(--surface-2)}
+  .quota input{border-radius:50%}
+  .quota input:checked{background-color:var(--amber);border-color:var(--amber)}
+  .quota .q-name{font-weight:700;font-size:15.5px;line-height:1.3}
+  .quota .q-sub{font-size:12.5px;color:var(--ink-2)}
+  .quota input:checked ~ .q-txt .q-name{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:2px}
+  .quota-note{font-size:13px;color:var(--ink-2);margin-top:10px}
+  .quota-note strong{color:var(--amber)}
+
+  /* footer actions */
+  .actions{margin-top:30px;display:flex;flex-direction:column;gap:10px;align-items:stretch}
+  .btn-reset{
+    appearance:none;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
+    border-radius:12px;font-size:15px;font-weight:700;padding:12px 16px;cursor:pointer;font-family:inherit;
+  }
+  .btn-reset.confirm{border-color:var(--rose);color:var(--rose);background:var(--rose-soft)}
+  .hint{font-size:12.5px;color:var(--ink-3);text-align:center;margin:0}
+  .day-end{
+    margin-top:22px;text-align:center;color:var(--ink-3);font-size:13px;
+    font-variant-numeric:tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .bar i,.task input,.quota input,.date-star{transition:none}
+    .star-pop{animation:none}
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <div class="date-nav" aria-label="日期切换">
+    <button type="button" class="date-nav-btn" id="prevDayBtn" aria-label="前一天">‹</button>
+    <div class="date-center">
+      <div class="today"><span id="todayText">今天</span><span class="date-star" id="dateStar" aria-hidden="true">★</span></div>
+      <div class="date-sub">
+        <span id="nowText"></span>
+        <button type="button" class="back-today" id="backTodayBtn" hidden>回到今天</button>
+      </div>
+    </div>
+    <button type="button" class="date-nav-btn" id="nextDayBtn" aria-label="后一天">›</button>
+  </div>
+  <p class="swipe-hint">在页面上左右滑动，或点 ‹ › ，就能换一天</p>
+  <div class="week-strip" id="weekStrip" aria-label="前后一周日期，点任意一天切换"></div>
+
+  <p class="subline">从上午 <strong>10:00</strong> 开始排 · 区间里把事做完就划勾，顺序自己定 · <span id="sublineDay">这一天</span>的 9 项全做完，就得一颗小星星 ★</p>
+
+  <section class="progress-card" aria-label="今日进度">
+    <div class="progress-top">
+      <div class="big"><span id="doneCount">0</span><small> / 9 已完成</small></div>
+      <div class="pct" id="pctText">0%</div>
+    </div>
+    <div class="bar" role="progressbar" aria-label="今日完成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barWrap"><i id="barFill"></i></div>
+    <div class="progress-meta">
+      <span id="metaSlots">区间 0 / 3</span>
+      <span id="metaTeacher">老师课 0 / 2</span>
+      <span id="metaFree">自由额度 0 / 4</span>
+    </div>
+    <div class="star-row" id="starRow">
+      <div class="star-main">
+        <span class="star-big" id="starBig" aria-hidden="true">★</span>
+        <span>
+          <span class="star-title" style="display:block" id="starTitle">满勤小星星 · 还没拿到</span>
+          <span class="star-sub" style="display:block" id="starSub">这一天 9 项全勾完，星星就会亮起来</span>
+        </span>
+      </div>
+      <div class="star-count" id="starCount">已收集 <strong>★ 0</strong></div>
+    </div>
+    <div class="all-done" id="allDone">★ 满勤！这一天的 9 个勾全打完了，小星星 +1，收工。</div>
+  </section>
+
+  <!-- ============ 自己安排的区间 ============ -->
+  <div class="section-head">
+    <h2><span class="day-label">今日</span>区间 · 自己安排</h2>
+    <p>每个区间只定一件事：在结束前把对应时长做满，做完点一下划勾。</p>
+  </div>
+
+  <div class="timeline" id="timeline">
+
+    <div class="slot" data-start="10" data-end="12">
+      <div class="slot-card">
+        <div class="slot-head">
+          <div class="time-badge">10:00 – 12:00 <small>· 2 小时窗口</small></div>
+          <span class="status todo" data-status>待开始</span>
+        </div>
+        <p class="slot-rule">这个区间内，必须完成 <strong>每日时讯 1 小时</strong>。</p>
+        <label class="task">
+          <input type="checkbox" data-group="slot" />
+          <span class="txt">
+            <span class="name">每日时讯</span>
+            <span class="desc" style="display:block">看完今天的时讯 / 资讯，满 1 小时勾掉</span>
+          </span>
+          <span class="dur">1 小时</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="slot" data-start="12" data-end="17">
+      <div class="slot-card">
+        <div class="slot-head">
+          <div class="time-badge">12:00 – 17:00 <small>· 5 小时窗口</small></div>
+          <span class="status todo" data-status>待开始</span>
+        </div>
+        <p class="slot-rule">这个区间内，留出 <strong>休闲娱乐 2 小时</strong>，整项做完一次勾掉，不用拆开计。</p>
+        <label class="task">
+          <input type="checkbox" data-group="slot" />
+          <span class="txt">
+            <span class="name">休闲娱乐</span>
+            <span class="desc" style="display:block">游戏、动漫、电影……放松满 2 小时勾掉</span>
+          </span>
+          <span class="dur">2 小时</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="slot" data-start="19" data-end="23">
+      <div class="slot-card">
+        <div class="slot-head">
+          <div class="time-badge">19:00 – 23:00 <small>· 4 小时窗口</small></div>
+          <span class="status todo" data-status>待开始</span>
+        </div>
+        <p class="slot-rule">这个区间内，必须完成 <strong>AI 课程 2 小时</strong>。可以拆成两段学，累计满 2 小时即可。</p>
+        <label class="task">
+          <input type="checkbox" data-group="slot" />
+          <span class="txt">
+            <span class="name">AI 课程</span>
+            <span class="desc" style="display:block">可以拆成两段学，累计满 2 小时再勾</span>
+          </span>
+          <span class="dur">2 小时</span>
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="day-end">17:00 – 19:00 没排死：吃饭、洗澡、临时有事都放这里，老师的课插进来也不冲突。</p>
+
+  <!-- ============ 老师安排 ============ -->
+  <div class="section-head">
+    <h2>老师安排 · 时间不固定</h2>
+    <p>这两门按老师的时间走，不进区间、不计时长。这一天上完 / 完成了，就勾一个。</p>
+  </div>
+
+  <div class="plain-card">
+    <label class="task">
+      <input type="checkbox" data-group="teacher" />
+      <span class="txt">
+        <span class="name">每日法语课</span>
+        <span class="desc" style="display:block">按老师安排的时间上课，上完勾掉</span>
+      </span>
+      <span class="dur">今日 1 次</span>
+    </label>
+    <label class="task">
+      <input type="checkbox" data-group="teacher" />
+      <span class="txt">
+        <span class="name">每日技能课</span>
+        <span class="desc" style="display:block">按老师安排的时间上课，上完勾掉</span>
+      </span>
+      <span class="dur">今日 1 次</span>
+    </label>
+  </div>
+
+  <!-- ============ 自由时间额度 ============ -->
+  <div class="section-head">
+    <h2>自由时间 · 4 小时额度</h2>
+    <p>不绑钟点，全天任意取用。用掉 1 小时，就勾掉 1 格。</p>
+  </div>
+
+  <div class="quota-grid">
+    <label class="quota">
+      <input type="checkbox" data-group="free" />
+      <span class="q-txt"><span class="q-name">自由时间 · 第 1 小时</span><span class="q-sub" style="display:block">已用掉就勾</span></span>
+    </label>
+    <label class="quota">
+      <input type="checkbox" data-group="free" />
+      <span class="q-txt"><span class="q-name">自由时间 · 第 2 小时</span><span class="q-sub" style="display:block">已用掉就勾</span></span>
+    </label>
+    <label class="quota">
+      <input type="checkbox" data-group="free" />
+      <span class="q-txt"><span class="q-name">自由时间 · 第 3 小时</span><span class="q-sub" style="display:block">已用掉就勾</span></span>
+    </label>
+    <label class="quota">
+      <input type="checkbox" data-group="free" />
+      <span class="q-txt"><span class="q-name">自由时间 · 第 4 小时</span><span class="q-sub" style="display:block">已用掉就勾</span></span>
+    </label>
+  </div>
+  <p class="quota-note">还剩 <strong id="freeLeft">4 小时</strong> 自由额度没用。</p>
+
+  <!-- ============ 操作 ============ -->
+  <div class="actions">
+    <button type="button" class="btn-reset" id="resetBtn">清空这一天的打勾 · 重新开始</button>
+    <p class="hint">点整行任意位置都能打勾 / 取消。左右滑动、点 ‹ › 或点上方日期条，都能换一天；每一天的勾分开记，换来换去不会串。勾选只在本次打开期间保留，关掉页面重开会清空。</p>
+  </div>
+
+</main>
+
+<script>
+(function(){
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('input[type="checkbox"]'));
+  var doneEl = document.getElementById('doneCount');
+  var pctEl = document.getElementById('pctText');
+  var fillEl = document.getElementById('barFill');
+  var barWrap = document.getElementById('barWrap');
+  var metaSlots = document.getElementById('metaSlots');
+  var metaTeacher = document.getElementById('metaTeacher');
+  var metaFree = document.getElementById('metaFree');
+  var freeLeft = document.getElementById('freeLeft');
+  var allDone = document.getElementById('allDone');
+  var total = boxes.length; // 9
+  var weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+  var weekdaysShort = ['日','一','二','三','四','五','六'];
+
+  var todayEl = document.getElementById('todayText');
+  var nowEl = document.getElementById('nowText');
+  var dateStarEl = document.getElementById('dateStar');
+  var starRow = document.getElementById('starRow');
+  var starBig = document.getElementById('starBig');
+  var starTitle = document.getElementById('starTitle');
+  var starSub = document.getElementById('starSub');
+  var starCountEl = document.getElementById('starCount');
+  var weekStrip = document.getElementById('weekStrip');
+  var backTodayBtn = document.getElementById('backTodayBtn');
+  var sublineDay = document.getElementById('sublineDay');
+  var wrap = document.querySelector('.wrap');
+
+  /* ---- per-day state, kept in memory for this open session only ---- */
+  function startOfDay(d){ var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); return x; }
+  function dateKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function addDays(d, n){ var x = startOfDay(d); x.setDate(x.getDate() + n); return x; }
+  function isSameDay(a,b){ return dateKey(a) === dateKey(b); }
+
+  var viewDate = startOfDay(new Date());
+  var dayState = {}; // dateKey -> [bool x9]
+  var wasFull = false;
+
+  function saveCurrent(){
+    dayState[dateKey(viewDate)] = boxes.map(function(b){ return !!b.checked; });
+  }
+  function loadCurrent(){
+    var arr = dayState[dateKey(viewDate)] || [];
+    boxes.forEach(function(b, i){ b.checked = !!arr[i]; });
+  }
+  function isFullKey(key){
+    var arr = dayState[key];
+    return !!(arr && arr.length === total && arr.every(function(v){ return v; }));
+  }
+  function starTotal(){
+    var n = 0;
+    Object.keys(dayState).forEach(function(k){ if(isFullKey(k)) n++; });
+    return n;
+  }
+
+  function count(group){
+    var n = 0;
+    boxes.forEach(function(b){ if(b.dataset.group === group && b.checked) n++; });
+    return n;
+  }
+
+  function renderWeekStrip(){
+    weekStrip.innerHTML = '';
+    var today = startOfDay(new Date());
+    for(var off = -3; off <= 3; off++){
+      (function(off){
+        var d = addDays(viewDate, off);
+        var key = dateKey(d);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'day-cell' + (off === 0 ? ' is-selected' : '') + (isSameDay(d, today) ? ' is-today' : '');
+        btn.setAttribute('aria-label', (d.getMonth()+1) + '月' + d.getDate() + '日 ' + weekdays[d.getDay()] + (isFullKey(key) ? '，已满勤' : ''));
+        var full = isFullKey(key);
+        btn.innerHTML = '<span class="d-wd">' + (isSameDay(d, today) ? '今天' : '周' + weekdaysShort[d.getDay()]) + '</span>' +
+          '<span class="d-num">' + d.getDate() + '</span>' +
+          '<span class="d-star' + (full ? '' : ' empty') + '">★</span>';
+        btn.addEventListener('click', function(){ goToDate(d); });
+        weekStrip.appendChild(btn);
+      })(off);
+    }
+  }
+
+  function refresh(){
+    saveCurrent();
+    var done = boxes.filter(function(b){ return b.checked; }).length;
+    var pct = Math.round(done / total * 100);
+    doneEl.textContent = done;
+    pctEl.textContent = pct + '%';
+    fillEl.style.width = pct + '%';
+    barWrap.setAttribute('aria-valuenow', pct);
+
+    var s = count('slot'), t = count('teacher'), f = count('free');
+    metaSlots.textContent = '区间 ' + s + ' / 3';
+    metaTeacher.textContent = '老师课 ' + t + ' / 2';
+    metaFree.textContent = '自由额度 ' + f + ' / 4';
+    metaSlots.className = s === 3 ? 'done' : '';
+    metaTeacher.className = t === 2 ? 'done' : '';
+    metaFree.className = f === 4 ? 'done' : '';
+
+    var left = 4 - f;
+    freeLeft.textContent = left === 0 ? '0 小时' : left + ' 小时';
+
+    var full = done === total;
+    allDone.classList.toggle('show', full);
+    starRow.classList.toggle('earned', full);
+    dateStarEl.classList.toggle('earned', full);
+    dateStarEl.title = full ? '这一天已满勤' : '满勤后点亮';
+    if(full){
+      starTitle.textContent = '满勤小星星 · 已拿到 ★';
+      starSub.textContent = '这一天 9 项全做完，星星是这一天的。';
+    } else {
+      starTitle.textContent = '满勤小星星 · 还差 ' + (total - done) + ' 个勾';
+      starSub.textContent = '这一天 9 项全勾完，星星就会亮起来';
+    }
+    starCountEl.innerHTML = '已收集 <strong>★ ' + starTotal() + '</strong>';
+    if(full && !wasFull){
+      starBig.classList.remove('star-pop'); void starBig.offsetWidth; starBig.classList.add('star-pop');
+      dateStarEl.classList.remove('star-pop'); void dateStarEl.offsetWidth; dateStarEl.classList.add('star-pop');
+    }
+    wasFull = full;
+
+    document.querySelectorAll('.slot').forEach(function(slot){
+      var cb = slot.querySelector('input[type="checkbox"]');
+      slot.classList.toggle('finished', !!(cb && cb.checked));
+    });
+    renderWeekStrip();
+    refreshClockStates();
+  }
+
+  function refreshClockStates(){
+    var now = new Date();
+    var today = startOfDay(now);
+    var viewingToday = isSameDay(viewDate, today);
+    todayEl.textContent = (viewDate.getMonth()+1) + '月' + viewDate.getDate() + '日 · ' + weekdays[viewDate.getDay()];
+    document.title = '每日打勾日程 · ' + (viewDate.getMonth()+1) + '月' + viewDate.getDate() + '日';
+    if(viewingToday){
+      nowEl.textContent = '今天 · 现在 ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    } else if(viewDate < today){
+      nowEl.textContent = '这一天已经过了 · 现在是今天 ' + (today.getMonth()+1) + '月' + today.getDate() + '日';
+    } else {
+      nowEl.textContent = '这是之后的一天 · 还没到';
+    }
+    backTodayBtn.hidden = viewingToday;
+    sublineDay.textContent = viewingToday ? '今天' : (viewDate.getMonth()+1) + '月' + viewDate.getDate() + '日这一天';
+    document.querySelectorAll('.day-label').forEach(function(el){ el.textContent = viewingToday ? '今日' : (viewDate.getMonth()+1) + '月' + viewDate.getDate() + '日 '; });
+
+    var cur = now.getHours() + now.getMinutes()/60;
+    document.querySelectorAll('.slot').forEach(function(slot){
+      var start = parseFloat(slot.dataset.start), end = parseFloat(slot.dataset.end);
+      var cb = slot.querySelector('input[type="checkbox"]');
+      var st = slot.querySelector('[data-status]');
+      var isNow = viewingToday && cur >= start && cur < end;
+      slot.classList.toggle('now', isNow && !(cb && cb.checked));
+      if(!st) return;
+      if(cb && cb.checked){
+        st.textContent = '✓ 已完成'; st.className = 'status done';
+      } else if(!viewingToday){
+        st.textContent = viewDate < today ? '那天的区间' : '还没到这天'; st.className = 'status past';
+      } else if(isNow){
+        st.textContent = '● 正在这个区间'; st.className = 'status now';
+      } else if(cur >= end){
+        st.textContent = '区间已过'; st.className = 'status past';
+      } else {
+        st.textContent = '待开始'; st.className = 'status todo';
+      }
+    });
+  }
+
+  function goToDate(d){
+    saveCurrent();
+    viewDate = startOfDay(d);
+    wasFull = false;
+    loadCurrent();
+    // disarm a pending reset when switching days
+    armed = false; clearTimeout(armTimer);
+    resetBtn.textContent = '清空这一天的打勾 · 重新开始';
+    resetBtn.classList.remove('confirm');
+    refresh();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.getElementById('prevDayBtn').addEventListener('click', function(){ goToDate(addDays(viewDate, -1)); });
+  document.getElementById('nextDayBtn').addEventListener('click', function(){ goToDate(addDays(viewDate, 1)); });
+  backTodayBtn.addEventListener('click', function(){ goToDate(new Date()); });
+  document.addEventListener('keydown', function(e){
+    if(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if(e.key === 'ArrowLeft') goToDate(addDays(viewDate, -1));
+    if(e.key === 'ArrowRight') goToDate(addDays(viewDate, 1));
+  });
+
+  /* ---- swipe to change day: touch + mouse drag ---- */
+  var swipeX = null, swipeY = null, swipeT = 0;
+  function swipeStart(x, y){ swipeX = x; swipeY = y; swipeT = Date.now(); }
+  function swipeEnd(x, y){
+    if(swipeX === null) return;
+    var dx = x - swipeX, dy = y - swipeY;
+    swipeX = null;
+    if(Date.now() - swipeT > 900) return;
+    if(Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    goToDate(addDays(viewDate, dx < 0 ? 1 : -1)); // swipe left -> next day, swipe right -> previous day
+  }
+  wrap.addEventListener('touchstart', function(e){ if(e.touches.length === 1) swipeStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  wrap.addEventListener('touchend', function(e){ if(e.changedTouches.length === 1) swipeEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }, { passive: true });
+  var mouseDown = false;
+  wrap.addEventListener('mousedown', function(e){ mouseDown = true; swipeStart(e.clientX, e.clientY); });
+  document.addEventListener('mouseup', function(e){ if(mouseDown){ mouseDown = false; swipeEnd(e.clientX, e.clientY); } });
+
+  boxes.forEach(function(b){ b.addEventListener('change', refresh); });
+
+  /* ---- reset this day only (two-tap confirm, no dialogs) ---- */
+  var resetBtn = document.getElementById('resetBtn');
+  var armed = false, armTimer = null;
+  resetBtn.addEventListener('click', function(){
+    if(!armed){
+      armed = true;
+      resetBtn.textContent = '再点一次确认清空这一天的 9 个勾';
+      resetBtn.classList.add('confirm');
+      armTimer = setTimeout(function(){
+        armed = false;
+        resetBtn.textContent = '清空这一天的打勾 · 重新开始';
+        resetBtn.classList.remove('confirm');
+      }, 3500);
+      return;
+    }
+    clearTimeout(armTimer);
+    armed = false;
+    boxes.forEach(function(b){ b.checked = false; });
+    resetBtn.textContent = '已清空 · 这一天重新开始';
+    resetBtn.classList.remove('confirm');
+    refresh();
+    setTimeout(function(){ resetBtn.textContent = '清空这一天的打勾 · 重新开始'; }, 2000);
+  });
+
+  loadCurrent();
+  refresh();
+  setInterval(function(){ refreshClockStates(); }, 60000);
+})();
+</script>
+</body>
+</html>

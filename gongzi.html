@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>工资条</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f4f1ea; color: #222; padding: 16px 14px 40px; }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 20px; text-align: center; margin: 6px 0 14px; letter-spacing: 2px; }
+  .months { display: flex; gap: 8px; margin-bottom: 14px; }
+  .months button { flex: 1; padding: 10px 0; font-size: 15px; border: 1px solid #c9c2b4; background: #fff; border-radius: 10px; cursor: pointer; }
+  .months button.active { background: #2f2a24; color: #fff; border-color: #2f2a24; }
+  .card { background: #fff; border: 1px solid #e3ddcf; border-radius: 14px; padding: 18px 16px; margin-bottom: 14px; }
+  .label { font-size: 13px; color: #8a8172; text-align: center; }
+  .balance { font-size: 42px; font-weight: 700; text-align: center; margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
+  .sub { font-size: 13px; color: #8a8172; text-align: center; }
+  .row { display: flex; gap: 8px; }
+  input[type=number] { flex: 1; font-size: 18px; padding: 12px; border: 1px solid #c9c2b4; border-radius: 10px; min-width: 0; }
+  .btn { padding: 12px 18px; font-size: 16px; border: none; border-radius: 10px; background: #b3543f; color: #fff; cursor: pointer; white-space: nowrap; }
+  .btn:active { opacity: .85; }
+  .btn-all { background: #fff; color: #b3543f; border: 1px solid #b3543f; padding: 12px 12px; }
+  .msg { min-height: 20px; font-size: 13px; color: #b3543f; margin-top: 8px; text-align: center; }
+  .detail h2 { font-size: 15px; margin-bottom: 10px; color: #2f2a24; }
+  .item { display: flex; align-items: center; padding: 10px 0; border-top: 1px dashed #e3ddcf; }
+  .item .when { flex: 1; font-size: 14px; color: #55503f; }
+  .item .amt { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .item .del { margin-left: 10px; font-size: 13px; color: #b3543f; background: none; border: 1px solid #e0b7ac; border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+  .item .del.confirm { background: #b3543f; color: #fff; border-color: #b3543f; }
+  .empty { text-align: center; color: #a39a86; font-size: 14px; padding: 16px 0 6px; }
+  .foot { text-align: center; font-size: 12px; color: #a39a86; margin-top: 10px; line-height: 1.7; }
+  a.back { display: inline-block; margin-top: 14px; font-size: 13px; color: #8a8172; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>工 资 条</h1>
+  <div class="months" id="months"></div>
+
+  <div class="card">
+    <div class="label" id="balLabel">本月余额</div>
+    <div class="balance" id="balance">¥3,000.00</div>
+    <div class="sub" id="balSub">固定工资 ¥3,000.00 · 已提现 ¥0.00</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input type="number" id="amount" inputmode="decimal" min="0" step="0.01" placeholder="输入提现金额（元）">
+      <button class="btn btn-all" id="allBtn">提全部</button>
+      <button class="btn" id="withdrawBtn">提现</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="card detail">
+    <h2 id="detailTitle">提现明细</h2>
+    <div id="list"></div>
+  </div>
+
+  <div class="foot">记录保存在这台设备的浏览器里，换设备不互通。<br><a class="back" href="index.html">← 回到首页</a></div>
+</div>
+
+<script>
+var SALARY = 3000;
+var MONTHS = [
+  { key: '2026-11', label: '2026年11月' },
+  { key: '2026-12', label: '2026年12月' },
+  { key: '2027-01', label: '2027年1月' }
+];
+var STORE_KEY = 'gongzi-v1';
+var data = {};
+try { data = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { data = {}; }
+MONTHS.forEach(function (m) { if (!Array.isArray(data[m.key])) data[m.key] = []; });
+
+var now = new Date();
+var nowKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+var current = MONTHS.some(function (m) { return m.key === nowKey; }) ? nowKey : MONTHS[0].key;
+var pendingDelete = -1;
+
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {} }
+function fmt(n) { return '¥' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function monthLabel(key) { for (var i = 0; i < MONTHS.length; i++) if (MONTHS[i].key === key) return MONTHS[i].label; return key; }
+function spent(key) { return data[key].reduce(function (s, r) { return s + r.amount; }, 0); }
+function balance(key) { return SALARY - spent(key); }
+
+function fmtWhen(ts) {
+  var d = new Date(ts);
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function render() {
+  var box = document.getElementById('months');
+  box.innerHTML = '';
+  MONTHS.forEach(function (m) {
+    var b = document.createElement('button');
+    b.textContent = m.label;
+    if (m.key === current) b.className = 'active';
+    b.onclick = function () { current = m.key; pendingDelete = -1; setMsg(''); render(); };
+    box.appendChild(b);
+  });
+
+  document.getElementById('balLabel').textContent = monthLabel(current) + ' · 本月余额';
+  document.getElementById('balance').textContent = fmt(balance(current));
+  document.getElementById('balSub').textContent =
+    '固定工资 ' + fmt(SALARY) + ' · 已提现 ' + fmt(spent(current)) + ' · 共 ' + data[current].length + ' 笔';
+
+  document.getElementById('detailTitle').textContent =
+    monthLabel(current) + ' 提现明细（合计 ' + fmt(spent(current)) + '）';
+
+  var list = document.getElementById('list');
+  list.innerHTML = '';
+  if (data[current].length === 0) {
+    var e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '这个月还没有提现记录';
+    list.appendChild(e);
+    return;
+  }
+  var rows = data[current].slice().reverse();
+  rows.forEach(function (r) {
+    var idx = data[current].indexOf(r);
+    var div = document.createElement('div');
+    div.className = 'item';
+    var when = document.createElement('span');
+    when.className = 'when';
+    when.textContent = fmtWhen(r.ts);
+    var amt = document.createElement('span');
+    amt.className = 'amt';
+    amt.textContent = '−' + fmt(r.amount);
+    var del = document.createElement('button');
+    del.className = 'del' + (pendingDelete === idx ? ' confirm' : '');
+    del.textContent = pendingDelete === idx ? '确认删除' : '删除';
+    del.onclick = function () {
+      if (pendingDelete === idx) {
+        data[current].splice(idx, 1);
+        pendingDelete = -1;
+        save();
+        setMsg('已删除，金额退回余额');
+        render();
+      } else {
+        pendingDelete = idx;
+        render();
+      }
+    };
+    div.appendChild(when); div.appendChild(amt); div.appendChild(del);
+    list.appendChild(div);
+  });
+}
+
+function setMsg(t) { document.getElementById('msg').textContent = t; }
+
+document.getElementById('withdrawBtn').onclick = function () {
+  var input = document.getElementById('amount');
+  var v = parseFloat(input.value);
+  if (isNaN(v) || v <= 0) { setMsg('先输入一个大于 0 的金额'); return; }
+  v = Math.round(v * 100) / 100;
+  var bal = balance(current);
+  if (v > bal) { setMsg('这个月只剩 ' + fmt(bal) + '，提现金额超过余额了'); return; }
+  data[current].push({ amount: v, ts: Date.now() });
+  save();
+  input.value = '';
+  pendingDelete = -1;
+  setMsg('已提现 ' + fmt(v));
+  render();
+};
+document.getElementById('allBtn').onclick = function () {
+  var bal = balance(current);
+  document.getElementById('amount').value = bal > 0 ? bal : '';
+  if (bal <= 0) setMsg('这个月已经提完了');
+};
+
+render();
+</script>
+</body>
+</html>
