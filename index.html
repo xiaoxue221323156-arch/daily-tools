@@ -3,28 +3,126 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>每日小工具</title>
+<title>小鱼小鲨鱼小熊家庭十年成长计划</title>
+<link rel="icon" href="icon.webp">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f4f1ea; color: #222; padding: 28px 16px; }
-  .wrap { max-width: 520px; margin: 0 auto; }
-  h1 { font-size: 20px; text-align: center; letter-spacing: 2px; margin-bottom: 22px; }
-  a.card { display: block; background: #fff; border: 1px solid #e3ddcf; border-radius: 14px; padding: 22px 18px; margin-bottom: 14px; text-decoration: none; color: #222; }
-  a.card .t { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
-  a.card .d { font-size: 13px; color: #8a8172; line-height: 1.6; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #eaf6ff;
+    background: #04182e url('hero.jpg') center / cover no-repeat fixed;
+    overflow-x: hidden;
+  }
+  .shade { position: fixed; inset: 0; background: linear-gradient(180deg, rgba(3,20,40,.55), rgba(3,20,40,.78) 60%, rgba(2,12,26,.92)); pointer-events: none; }
+  .bubbles { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+  .bubbles i {
+    position: absolute; bottom: -4vh; border-radius: 50%;
+    background: radial-gradient(circle at 32% 32%, rgba(190,240,255,.95), rgba(90,190,255,.25) 70%);
+    opacity: .5; animation: rise linear infinite;
+  }
+  @keyframes rise { to { transform: translateY(-112vh) translateX(2vw); } }
+  .stage { position: relative; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 18px 40px; }
+
+  /* ---------- book ---------- */
+  .book-wrap { perspective: 1600px; width: min(86vw, 340px); }
+  .book { position: relative; width: 100%; aspect-ratio: 3 / 4.1; transform-style: preserve-3d; }
+  .cover {
+    position: absolute; inset: 0; border-radius: 10px 18px 18px 10px;
+    background: linear-gradient(150deg, #0a3d66 0%, #062a4d 55%, #041c36 100%);
+    border: 1px solid rgba(140,220,255,.35);
+    box-shadow: 0 30px 60px rgba(0,0,0,.55), inset 0 0 0 6px rgba(120,205,255,.07), inset 14px 0 24px rgba(0,0,0,.35);
+    transform-origin: left center; transition: transform 1.35s cubic-bezier(.6,.02,.2,1), opacity .5s ease .95s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    padding: 26px 22px; text-align: center; cursor: pointer; z-index: 3; backface-visibility: hidden;
+  }
+  .book.open .cover { transform: rotateY(-158deg); opacity: 0; pointer-events: none; }
+  .cover img.icon { width: 108px; height: 108px; border-radius: 26px; box-shadow: 0 10px 28px rgba(0,0,0,.45); }
+  .cover .plan { font-size: 21px; font-weight: 700; line-height: 1.55; letter-spacing: 1px; color: #f2faff; text-shadow: 0 2px 14px rgba(70,180,255,.45); }
+  .cover .plan em { font-style: normal; color: #ffd166; }
+  .cover .members { font-size: 13px; color: #9fd4f5; letter-spacing: 3px; }
+  .cover .tap { margin-top: 10px; font-size: 13px; color: #04182e; background: linear-gradient(90deg, #6ee7ff, #a5f3ff); padding: 9px 20px; border-radius: 999px; font-weight: 600; animation: pulse 2.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .pages {
+    position: absolute; inset: 6px 6px 6px 10px; border-radius: 8px 14px 14px 8px;
+    background: linear-gradient(160deg, rgba(10,52,92,.92), rgba(5,30,58,.96));
+    border: 1px solid rgba(140,220,255,.25);
+    padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; justify-content: center;
+    opacity: 0; transform: translateY(8px); transition: opacity .6s ease .55s, transform .6s ease .55s; z-index: 2;
+  }
+  .book.open .pages { opacity: 1; transform: none; }
+  .pages .hello { text-align: center; font-size: 14px; color: #bfe6ff; line-height: 1.7; margin-bottom: 2px; }
+  .pages .hello b { color: #ffd166; font-weight: 700; }
+  a.entry {
+    display: flex; align-items: center; gap: 12px; text-decoration: none; color: #eaf6ff;
+    background: rgba(110,231,255,.07); border: 1px solid rgba(140,220,255,.28); border-radius: 14px; padding: 14px 14px;
+  }
+  a.entry:active { background: rgba(110,231,255,.16); }
+  a.entry .thumb { width: 52px; height: 52px; border-radius: 13px; flex: none; display: flex; align-items: center; justify-content: center; background: linear-gradient(145deg, #0e5a8a, #083a5e); border: 1px solid rgba(140,220,255,.35); }
+  a.entry .t { font-size: 16px; font-weight: 700; }
+  a.entry .d { font-size: 12px; color: #9fd4f5; margin-top: 3px; line-height: 1.55; }
+  a.entry .go { margin-left: auto; color: #6ee7ff; font-size: 18px; flex: none; }
+  .foot { margin-top: 26px; font-size: 12px; color: rgba(190,228,255,.55); text-align: center; line-height: 1.8; position: relative; }
+  .reopen { margin-top: 14px; font-size: 12px; color: #9fd4f5; background: none; border: 1px solid rgba(140,220,255,.35); padding: 7px 16px; border-radius: 999px; cursor: pointer; display: none; position: relative; }
+  .book.open ~ .reopen { display: inline-block; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>每 日 小 工 具</h1>
-  <a class="card" href="richeng.html">
-    <div class="t">📋 每日打勾日程</div>
-    <div class="d">每天 9 项打勾，日期可左右划动切换，9 项全做完（满勤）得一颗小星星。</div>
-  </a>
-  <a class="card" href="gongzi.html">
-    <div class="t">🧾 工资条</div>
-    <div class="d">每月固定 ¥3,000，可切换 2026年11月 / 12月 / 2027年1月，输入金额提现，余额与明细按月查看。</div>
-  </a>
+<div class="shade"></div>
+<div class="bubbles" id="bubbles"></div>
+
+<div class="stage">
+  <div class="book-wrap">
+    <div class="book" id="book">
+      <div class="pages">
+        <div class="hello">欢迎来到我们的海。<br>选一个，<b>开始今天</b>。</div>
+        <a class="entry" href="richeng.html">
+          <span class="thumb" aria-hidden="true">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" stroke="#6ee7ff" stroke-width="1.6"/><path d="M3 10h18" stroke="#6ee7ff" stroke-width="1.6"/><path d="M8 3v4M16 3v4" stroke="#6ee7ff" stroke-width="1.6" stroke-linecap="round"/><path d="M8.5 16.5l2.4 2.4 4.6-4.9" stroke="#ffd166" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span>
+            <span class="t">每日打勾日程</span>
+            <span class="d" style="display:block">每天 9 项，划动换日期，满勤得一颗小星星。</span>
+          </span>
+          <span class="go">›</span>
+        </a>
+        <a class="entry" href="gongzi.html">
+          <span class="thumb" aria-hidden="true">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="3" stroke="#6ee7ff" stroke-width="1.6"/><path d="M3 10h18" stroke="#6ee7ff" stroke-width="1.6"/><path d="M7 15.5h5" stroke="#ffd166" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span>
+            <span class="t">工资条 · 子界面</span>
+            <span class="d" style="display:block">每月固定 ¥3,000，点开进入子界面记提现。</span>
+          </span>
+          <span class="go">›</span>
+        </a>
+      </div>
+      <div class="cover" id="cover" role="button" aria-label="翻开这本书">
+        <img class="icon" src="icon.webp" alt="虎鲸图标">
+        <div class="plan">小鱼 · 小鲨鱼 · 小熊<br>家庭<em>十年成长计划</em></div>
+        <div class="members">一 片 海 · 十 年</div>
+        <div class="tap">翻 开 这 本 书</div>
+      </div>
+    </div>
+    <button class="reopen" id="reopen">合上书</button>
+  </div>
+  <div class="foot">深蓝的海，慢慢长大。<br>日程与工资条都在这本书里。</div>
 </div>
+
+<script>
+  var book = document.getElementById('book');
+  document.getElementById('cover').addEventListener('click', function () { book.classList.add('open'); });
+  document.getElementById('reopen').addEventListener('click', function () { book.classList.remove('open'); });
+  var box = document.getElementById('bubbles');
+  for (var i = 0; i < 16; i++) {
+    var b = document.createElement('i');
+    var s = 3 + Math.random() * 9;
+    b.style.width = s + 'px'; b.style.height = s + 'px';
+    b.style.left = (Math.random() * 100) + 'vw';
+    b.style.animationDuration = (9 + Math.random() * 14) + 's';
+    b.style.animationDelay = (-Math.random() * 16) + 's';
+    box.appendChild(b);
+  }
+</script>
 </body>
 </html>

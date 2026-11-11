@@ -3,38 +3,68 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>工资条</title>
+<title>工资条 · 小鱼小鲨鱼小熊家庭十年成长计划</title>
+<link rel="icon" href="icon.webp">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f4f1ea; color: #222; padding: 16px 14px 40px; }
-  .wrap { max-width: 520px; margin: 0 auto; }
-  h1 { font-size: 20px; text-align: center; margin: 6px 0 14px; letter-spacing: 2px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #eaf6ff; min-height: 100dvh;
+    background: linear-gradient(180deg, #062a4d 0%, #041c36 55%, #02101f 100%);
+    padding: 0 14px 44px;
+  }
+  .wrap { max-width: 540px; margin: 0 auto; }
+  .hero { margin: 0 -14px 14px; height: 132px; background: url('hero.jpg') center 62% / cover no-repeat; position: relative; }
+  .hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,24,46,.08), rgba(4,24,46,.55)); }
+  .brand { display: flex; align-items: center; gap: 10px; margin: 2px 0 14px; }
+  .brand img { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+  .brand .name { font-size: 13px; color: #9fd4f5; letter-spacing: .5px; line-height: 1.5; }
+  .brand .name b { color: #eaf6ff; font-size: 14px; }
+  .brand a.back { margin-left: auto; flex: none; font-size: 12.5px; color: #6ee7ff; text-decoration: none; border: 1px solid rgba(140,220,255,.4); padding: 7px 13px; border-radius: 999px; }
+  h1 { font-size: 21px; text-align: center; letter-spacing: 6px; margin: 4px 0 16px; color: #f2faff; text-shadow: 0 2px 16px rgba(70,180,255,.4); }
   .months { display: flex; gap: 8px; margin-bottom: 14px; }
-  .months button { flex: 1; padding: 10px 0; font-size: 15px; border: 1px solid #c9c2b4; background: #fff; border-radius: 10px; cursor: pointer; }
-  .months button.active { background: #2f2a24; color: #fff; border-color: #2f2a24; }
-  .card { background: #fff; border: 1px solid #e3ddcf; border-radius: 14px; padding: 18px 16px; margin-bottom: 14px; }
-  .label { font-size: 13px; color: #8a8172; text-align: center; }
-  .balance { font-size: 42px; font-weight: 700; text-align: center; margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
-  .sub { font-size: 13px; color: #8a8172; text-align: center; }
+  .months button {
+    flex: 1; padding: 11px 0; font-size: 14.5px; border-radius: 11px; cursor: pointer;
+    color: #bfe6ff; background: rgba(110,231,255,.06); border: 1px solid rgba(140,220,255,.3);
+  }
+  .months button.active { background: linear-gradient(145deg, #0e5a8a, #083a5e); color: #fff; border-color: rgba(160,225,255,.7); box-shadow: 0 6px 18px rgba(14,90,138,.45); }
+  .card {
+    background: linear-gradient(165deg, rgba(16,68,116,.55), rgba(7,36,66,.72));
+    border: 1px solid rgba(140,220,255,.22); border-radius: 16px; padding: 18px 16px; margin-bottom: 14px;
+    box-shadow: 0 14px 30px rgba(0,0,0,.35);
+  }
+  .label { font-size: 13px; color: #9fd4f5; text-align: center; letter-spacing: 1px; }
+  .balance { font-size: 44px; font-weight: 800; text-align: center; margin: 8px 0 5px; font-variant-numeric: tabular-nums; color: #ffffff; text-shadow: 0 3px 20px rgba(110,231,255,.35); }
+  .sub { font-size: 13px; color: #9fd4f5; text-align: center; }
   .row { display: flex; gap: 8px; }
-  input[type=number] { flex: 1; font-size: 18px; padding: 12px; border: 1px solid #c9c2b4; border-radius: 10px; min-width: 0; }
-  .btn { padding: 12px 18px; font-size: 16px; border: none; border-radius: 10px; background: #b3543f; color: #fff; cursor: pointer; white-space: nowrap; }
+  input[type=number] {
+    flex: 1; font-size: 17px; padding: 12px; border-radius: 11px; min-width: 0;
+    background: rgba(3,20,40,.65); border: 1px solid rgba(140,220,255,.35); color: #fff;
+  }
+  input[type=number]::placeholder { color: rgba(159,212,245,.5); font-size: 15px; }
+  .btn { padding: 12px 18px; font-size: 16px; border: none; border-radius: 11px; background: linear-gradient(145deg, #1283b8, #0a5d8f); color: #fff; cursor: pointer; white-space: nowrap; font-weight: 700; box-shadow: 0 8px 18px rgba(10,93,143,.4); }
   .btn:active { opacity: .85; }
-  .btn-all { background: #fff; color: #b3543f; border: 1px solid #b3543f; padding: 12px 12px; }
-  .msg { min-height: 20px; font-size: 13px; color: #b3543f; margin-top: 8px; text-align: center; }
-  .detail h2 { font-size: 15px; margin-bottom: 10px; color: #2f2a24; }
-  .item { display: flex; align-items: center; padding: 10px 0; border-top: 1px dashed #e3ddcf; }
-  .item .when { flex: 1; font-size: 14px; color: #55503f; }
-  .item .amt { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .item .del { margin-left: 10px; font-size: 13px; color: #b3543f; background: none; border: 1px solid #e0b7ac; border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+  .btn-all { background: rgba(110,231,255,.08); color: #6ee7ff; border: 1px solid rgba(140,220,255,.45); box-shadow: none; font-weight: 600; padding: 12px; }
+  .msg { min-height: 20px; font-size: 13px; color: #ffd166; margin-top: 9px; text-align: center; }
+  .detail h2 { font-size: 15px; margin-bottom: 6px; color: #eaf6ff; }
+  .item { display: flex; align-items: center; padding: 11px 0; border-top: 1px dashed rgba(140,220,255,.18); }
+  .item .when { flex: 1; font-size: 14px; color: #bfe6ff; }
+  .item .amt { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: #fff; }
+  .item .del { margin-left: 10px; font-size: 13px; color: #ffb4a2; background: none; border: 1px solid rgba(255,180,162,.4); border-radius: 8px; padding: 5px 9px; cursor: pointer; }
   .item .del.confirm { background: #b3543f; color: #fff; border-color: #b3543f; }
-  .empty { text-align: center; color: #a39a86; font-size: 14px; padding: 16px 0 6px; }
-  .foot { text-align: center; font-size: 12px; color: #a39a86; margin-top: 10px; line-height: 1.7; }
-  a.back { display: inline-block; margin-top: 14px; font-size: 13px; color: #8a8172; }
+  .empty { text-align: center; color: rgba(159,212,245,.6); font-size: 14px; padding: 18px 0 6px; }
+  .foot { text-align: center; font-size: 12px; color: rgba(159,212,245,.55); margin-top: 10px; line-height: 1.8; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="hero"></div>
+  <div class="brand">
+    <img src="icon.webp" alt="虎鲸图标">
+    <div class="name"><b>小鱼 · 小鲨鱼 · 小熊</b><br>家庭十年成长计划</div>
+    <a class="back" href="index.html">← 回到书里</a>
+  </div>
+
   <h1>工 资 条</h1>
   <div class="months" id="months"></div>
 
@@ -58,7 +88,7 @@
     <div id="list"></div>
   </div>
 
-  <div class="foot">记录保存在这台设备的浏览器里，换设备不互通。<br><a class="back" href="index.html">← 回到首页</a></div>
+  <div class="foot">记录保存在这台设备的浏览器里，换设备不互通。</div>
 </div>
 
 <script>
