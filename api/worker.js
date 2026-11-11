@@ -133,6 +133,42 @@ export default {
         return json({ ok: true, items });
       }
 
+      // ---------- 日程打勾（全家共享） ----------
+      if (path === "/api/schedule") {
+        if (req.method === "GET") {
+          const date = url.searchParams.get("date") || "";
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ ok: false, error: "bad_date" }, 400);
+          const checks = await readJSON(env, "sched:" + date, {});
+          return json({ ok: true, date, checks });
+        }
+        const body = await req.json().catch(() => ({}));
+        const date = String(body.date || "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ ok: false, error: "bad_date" }, 400);
+        let checks = await readJSON(env, "sched:" + date, {});
+        if (req.method === "POST" && body.action === "set") {
+          const task = String(body.task || "");
+          if (!task) return json({ ok: false, error: "bad_task" }, 400);
+          if (body.done) checks[task] = true; else delete checks[task];
+        } else if (req.method === "POST" && body.action === "clear") {
+          checks = {};
+        } else {
+          return json({ ok: false, error: "bad_action" }, 400);
+        }
+        await env.KV.put("sched:" + date, JSON.stringify(checks));
+        return json({ ok: true, date, checks });
+      }
+      if (path === "/api/schedule/month" && req.method === "GET") {
+        const ym = url.searchParams.get("ym") || "";
+        if (!/^\d{4}-\d{2}$/.test(ym)) return json({ ok: false, error: "bad_ym" }, 400);
+        const listed = await env.KV.list({ prefix: "sched:" + ym + "-" });
+        const counts = {};
+        for (const k of listed.keys) {
+          const v = await readJSON(env, k.name, {});
+          counts[k.name.slice(6)] = Object.keys(v).length;
+        }
+        return json({ ok: true, ym, counts });
+      }
+
       return json({ ok: false, error: "not_found" }, 404);
     } catch (e) {
       return json({ ok: false, error: "server_error", detail: String(e && e.message || e) }, 500);
