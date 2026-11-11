@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>关键待办 · 小鱼小鲨鱼小熊家庭十年成长计划</title>
+<link rel="icon" href="icon.webp">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #eaf6ff; min-height: 100dvh; background: linear-gradient(180deg, #062a4d 0%, #041c36 55%, #02101f 100%); padding: 0 14px 44px; }
+  .wrap { max-width: 540px; margin: 0 auto; }
+  .hero { margin: 0 -14px 14px; height: 132px; background: url('hero.jpg') center 62% / cover no-repeat; position: relative; }
+  .hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,24,46,.08), rgba(4,24,46,.55)); }
+  .brand { display: flex; align-items: center; gap: 10px; margin: 2px 0 14px; }
+  .brand img { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+  .brand .name { font-size: 13px; color: #9fd4f5; line-height: 1.5; }
+  .brand .name b { color: #eaf6ff; font-size: 14px; }
+  .brand a.back { margin-left: auto; flex: none; font-size: 12.5px; color: #6ee7ff; text-decoration: none; border: 1px solid rgba(140,220,255,.4); padding: 7px 13px; border-radius: 999px; }
+  h1 { font-size: 21px; text-align: center; letter-spacing: 4px; margin: 4px 0 6px; color: #f2faff; text-shadow: 0 2px 16px rgba(70,180,255,.4); }
+  .count { text-align: center; font-size: 13px; color: #9fd4f5; margin-bottom: 16px; }
+  .count b { color: #ffd166; }
+  .card { background: linear-gradient(165deg, rgba(16,68,116,.55), rgba(7,36,66,.72)); border: 1px solid rgba(140,220,255,.22); border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
+  .row { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; font-size: 16px; padding: 12px; border-radius: 11px; min-width: 0; background: rgba(3,20,40,.65); border: 1px solid rgba(140,220,255,.35); color: #fff; }
+  input[type=text]::placeholder { color: rgba(159,212,245,.5); font-size: 14.5px; }
+  .btn { padding: 12px 20px; font-size: 16px; border: none; border-radius: 11px; background: linear-gradient(145deg, #1283b8, #0a5d8f); color: #fff; cursor: pointer; font-weight: 700; box-shadow: 0 8px 18px rgba(10,93,143,.4); }
+  .btn:active { opacity: .85; }
+  .msg { min-height: 18px; font-size: 13px; color: #ffd166; margin-top: 8px; text-align: center; }
+  .item { display: flex; align-items: center; gap: 12px; padding: 13px 2px; border-top: 1px dashed rgba(140,220,255,.18); }
+  .item:first-child { border-top: none; }
+  .tick { width: 30px; height: 30px; flex: none; border-radius: 9px; border: 2px solid rgba(140,220,255,.55); background: rgba(3,20,40,.5); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 17px; color: transparent; }
+  .item.done .tick { background: linear-gradient(145deg, #ffd166, #f0a832); border-color: #ffd166; color: #4a2f00; }
+  .item .txt { flex: 1; font-size: 16px; line-height: 1.5; word-break: break-all; }
+  .item.done .txt { color: rgba(190,228,255,.45); text-decoration: line-through; }
+  .item .del { flex: none; font-size: 13px; color: #ffb4a2; background: none; border: 1px solid rgba(255,180,162,.4); border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+  .item .del.confirm { background: #b3543f; color: #fff; border-color: #b3543f; }
+  .empty { text-align: center; color: rgba(159,212,245,.6); font-size: 14px; padding: 16px 0 4px; }
+  .foot { text-align: center; font-size: 12px; color: rgba(159,212,245,.55); line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero"></div>
+  <div class="brand">
+    <img src="icon.webp" alt="虎鲸图标">
+    <div class="name"><b>小鱼 · 小鲨鱼 · 小熊</b><br>家庭十年成长计划</div>
+    <a class="back" href="index.html">← 回到书里</a>
+  </div>
+
+  <h1>关 键 待 办</h1>
+  <div class="count" id="count"></div>
+
+  <div class="card">
+    <div class="row">
+      <input type="text" id="newItem" placeholder="输入一件关键待办，回车或点添加" maxlength="120">
+      <button class="btn" id="addBtn">添加</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="card" id="listCard">
+    <div id="list"></div>
+  </div>
+
+  <div class="foot">待办保存在这台设备的浏览器里，换设备不互通。</div>
+</div>
+
+<script>
+var STORE_KEY = 'family-todos-v1';
+var items = [];
+try { items = JSON.parse(localStorage.getItem(STORE_KEY) || '[]') || []; } catch (e) { items = []; }
+if (!Array.isArray(items)) items = [];
+var pendingDelete = -1;
+
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(items)); } catch (e) {} }
+function setMsg(t) { document.getElementById('msg').textContent = t; }
+
+function render() {
+  var done = items.filter(function (i) { return i.done; }).length;
+  document.getElementById('count').innerHTML =
+    items.length === 0 ? '还没有待办，在上面写下第一件' :
+    '已完成 <b>' + done + '</b> / 共 ' + items.length + ' 件';
+  var list = document.getElementById('list');
+  list.innerHTML = '';
+  if (items.length === 0) {
+    var e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '清单是空的';
+    list.appendChild(e);
+    return;
+  }
+  items.forEach(function (item, idx) {
+    var div = document.createElement('div');
+    div.className = 'item' + (item.done ? ' done' : '');
+    var tick = document.createElement('button');
+    tick.className = 'tick';
+    tick.textContent = '✓';
+    tick.setAttribute('aria-label', '打勾');
+    tick.onclick = function () { item.done = !item.done; save(); render(); };
+    var txt = document.createElement('span');
+    txt.className = 'txt';
+    txt.textContent = item.text;
+    var del = document.createElement('button');
+    del.className = 'del' + (pendingDelete === idx ? ' confirm' : '');
+    del.textContent = pendingDelete === idx ? '确认删除' : '删除';
+    del.onclick = function () {
+      if (pendingDelete === idx) { items.splice(idx, 1); pendingDelete = -1; save(); render(); }
+      else { pendingDelete = idx; render(); }
+    };
+    div.appendChild(tick); div.appendChild(txt); div.appendChild(del);
+    list.appendChild(div);
+  });
+}
+
+function add() {
+  var input = document.getElementById('newItem');
+  var v = input.value.trim();
+  if (!v) { setMsg('先写点什么再添加'); return; }
+  items.push({ text: v, done: false, ts: Date.now() });
+  save();
+  input.value = '';
+  setMsg('');
+  render();
+  input.focus();
+}
+document.getElementById('addBtn').onclick = add;
+document.getElementById('newItem').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') add(); });
+
+render();
+</script>
+</body>
+</html>
