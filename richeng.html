@@ -701,7 +701,7 @@
   <!-- ============ 操作 ============ -->
   <div class="actions">
     <button type="button" class="btn-reset" id="resetBtn">清空这一天的打勾 · 重新开始</button>
-    <p class="hint">点整行任意位置都能打勾 / 取消。左右滑动、点 ‹ › 或点上方日期条，都能换一天；每一天的勾分开记，换来换去不会串。勾选只在本次打开期间保留，关掉页面重开会清空。</p>
+    <p class="hint">点整行任意位置都能打勾 / 取消。左右滑动、点 ‹ › 或点上方日期条，都能换一天；每一天的勾分开记，换来换去不会串。勾选会存到家庭服务器上，关掉重开还在，三个人看到的是同一份。</p>
   </div>
 
   <p class="foot-sign">小鲨鱼 <span class="fs-star">★</span> 小鱼 <span class="fs-star">★</span> 小熊 · 深海十年，慢慢游</p>
@@ -747,12 +747,71 @@
   var dayState = {}; // dateKey -> [bool x9]
   var wasFull = false;
 
+  /* ---- server sync (family-shared schedule) ---- */
+  var API = 'https://family-plan-api.xiaoxue221323156.workers.dev';
+  var fetchedDay = {};
+  var lastSent = {};
+  var saveTimers = {};
+  var monthsSeeded = {};
+  function checksOf(key){
+    var arr = dayState[key] || [];
+    var o = {};
+    arr.forEach(function(v, i){ if(v) o[String(i)] = true; });
+    return o;
+  }
+  function queueSave(key){
+    if(fetchedDay[key] !== true) return;
+    var payload = JSON.stringify(checksOf(key));
+    if(lastSent[key] === payload) return;
+    clearTimeout(saveTimers[key]);
+    saveTimers[key] = setTimeout(function(){
+      lastSent[key] = payload;
+      fetch(API + '/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: key, action: 'setAll', checks: JSON.parse(payload) }) }).catch(function(){});
+    }, 350);
+  }
+  function ensureDay(key){
+    if(fetchedDay[key]) return;
+    fetchedDay[key] = 'loading';
+    fetch(API + '/api/schedule?date=' + key).then(function(r){ return r.json(); }).then(function(d){
+      if(!d.ok){ delete fetchedDay[key]; return; }
+      var arr = [];
+      for(var i = 0; i < total; i++) arr.push(!!(d.checks && d.checks[String(i)]));
+      dayState[key] = arr;
+      lastSent[key] = JSON.stringify(d.checks || {});
+      fetchedDay[key] = true;
+      if(key === dateKey(viewDate)){ boxes.forEach(function(b, i){ b.checked = !!arr[i]; }); refresh(); }
+      else renderWeekStrip();
+    }).catch(function(){ delete fetchedDay[key]; });
+  }
+  function seedMonth(ym){
+    if(monthsSeeded[ym]) return;
+    monthsSeeded[ym] = true;
+    fetch(API + '/api/schedule/month?ym=' + ym).then(function(r){ return r.json(); }).then(function(d){
+      if(!d.ok){ delete monthsSeeded[ym]; return; }
+      Object.keys(d.counts || {}).forEach(function(date){
+        if(fetchedDay[date] === true) return;
+        var c = d.counts[date];
+        if(c >= total) dayState[date] = boxes.map(function(){ return true; });
+        else if(c === 0) dayState[date] = [];
+        else { var a = []; for(var i = 0; i < total; i++) a.push(i < c); dayState[date] = a; }
+      });
+      renderWeekStrip();
+      starCountEl.innerHTML = '已收集 <strong>★ ' + starTotal() + '</strong>';
+    }).catch(function(){ delete monthsSeeded[ym]; });
+  }
+
   function saveCurrent(){
     dayState[dateKey(viewDate)] = boxes.map(function(b){ return !!b.checked; });
+    queueSave(dateKey(viewDate));
   }
   function loadCurrent(){
     var arr = dayState[dateKey(viewDate)] || [];
     boxes.forEach(function(b, i){ b.checked = !!arr[i]; });
+    var key = dateKey(viewDate);
+    ensureDay(key);
+    seedMonth(key.slice(0, 7));
+    seedMonth(dateKey(addDays(viewDate, -3)).slice(0, 7));
+    seedMonth(dateKey(addDays(viewDate, 3)).slice(0, 7));
   }
   function isFullKey(key){
     var arr = dayState[key];
@@ -980,7 +1039,11 @@
   autoTimer = setTimeout(openBook, reduce ? 500 : 2400);
 
   /* ---- sub-interface: wage slip stays hidden until the special code is entered ---- */
-  var SPECIAL_CODE = 'muyuzuiniubi';
+  var API = 'https://family-plan-api.xiaoxue221323156.workers.dev';
+  var payToken = '';
+  try { payToken = sessionStorage.getItem('pay-token') || ''; } catch(e) {}
+  var wageMonth = '2026-11';
+  var wageMonths = { '2026 年 11 月': '2026-11', '2026 年 12 月': '2026-12', '2027 年 1 月': '2027-01' };
   var subAdd = document.getElementById('subAddBtn');
   var subPanel = document.getElementById('subPanel');
   var codeGate = document.getElementById('codeGate');
@@ -996,23 +1059,44 @@
     var open = subPanel.hidden;
     subPanel.hidden = !open;
     subAdd.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if(open && !unlocked){ setTimeout(function(){ codeInput.focus(); }, 80); }
+    if(open && !unlocked){ if(payToken){ showWage(); } else { setTimeout(function(){ codeInput.focus(); }, 80); } }
   });
 
+  function showWage(){
+    unlocked = true;
+    codeErr.hidden = true;
+    codeInput.value = '';
+    codeGate.hidden = true;
+    wageInner.hidden = false;
+    loadWagePanel();
+  }
+  function codeFail(){
+    codeErr.hidden = false;
+    codeGate.classList.remove('shake');
+    void codeGate.offsetWidth;
+    codeGate.classList.add('shake');
+    codeInput.select();
+  }
+  function loadWagePanel(){
+    if(!payToken) return;
+    fetch(API + '/api/wage?month=' + wageMonth, { headers: { 'Authorization': 'Bearer ' + payToken } })
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(!d.ok) return;
+        var num = document.querySelector('.wage-balance .b-num');
+        if(num) num.innerHTML = '¥' + Number(d.balance).toLocaleString('en-US') + ' <small>/ 工资 ¥3,000</small>';
+        var note = document.querySelector('.wage-note');
+        if(note) note.textContent = d.total > 0 ? ('本月已提现 ¥' + Number(d.total).toLocaleString('en-US') + ' · 共 ' + d.items.length + ' 笔；提现和明细在工资条子界面里记。') : '本月还没有提现。提现和明细在工资条子界面里记，这里只看余额。';
+      }).catch(function(){});
+  }
   function tryCode(){
-    if(codeInput.value.trim() === SPECIAL_CODE){
-      unlocked = true;
-      codeErr.hidden = true;
-      codeInput.value = '';
-      codeGate.hidden = true;
-      wageInner.hidden = false;
-    } else {
-      codeErr.hidden = false;
-      codeGate.classList.remove('shake');
-      void codeGate.offsetWidth;
-      codeGate.classList.add('shake');
-      codeInput.select();
-    }
+    fetch(API + '/api/unlock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: codeInput.value.trim() }) })
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok && d.token){
+          payToken = d.token;
+          try { sessionStorage.setItem('pay-token', payToken); } catch(e) {}
+          showWage();
+        } else codeFail();
+      }).catch(function(){ codeFail(); });
   }
   codeBtn.addEventListener('click', tryCode);
   codeInput.addEventListener('keydown', function(e){
@@ -1035,6 +1119,9 @@
       document.querySelectorAll('[data-wage-month]').forEach(function(b){ b.classList.remove('active'); });
       btn.classList.add('active');
       wageLabel.textContent = btn.textContent.trim() + ' · 本月余额';
+      var mk = wageMonths[btn.textContent.trim()];
+      if(mk) wageMonth = mk;
+      if(unlocked) loadWagePanel();
     });
   });
 })();
