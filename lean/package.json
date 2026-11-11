@@ -1,0 +1,14 @@
+{
+  "name": "family-plan-api-lean",
+  "version": "1.0.0",
+  "private": true,
+  "description": "小鲨鱼小鱼小熊家庭十年成长计划 - LeanCloud 云引擎版 API（与 Cloudflare Worker 版接口契约一致）",
+  "main": "app.js",
+  "scripts": { "start": "node app.js" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "leanengine": "^3.8.0",
+    "leancloud-storage": "^4.15.2"
+  },
+  "engines": { "node": ">=18" }
+}
