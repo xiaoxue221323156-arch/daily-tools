@@ -1,0 +1,66 @@
+name: deploy-api
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "api/**"
+      - ".github/workflows/deploy-api.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure KV namespace and fill wrangler.toml
+        working-directory: api
+        run: |
+          ID=$(npx -y wrangler@4 kv namespace list 2>/dev/null | grep -o '"id": "[^"]*"' | head -1 | cut -d'"' -f4 || true)
+          TITLES=$(npx -y wrangler@4 kv namespace list 2>/dev/null || true)
+          echo "$TITLES" | head -c 2000
+          EXISTING=$(node -e "
+            const { execSync } = require('child_process');
+            try {
+              const out = execSync('npx -y wrangler@4 kv namespace list', {encoding:'utf8', stdio:['ignore','pipe','ignore']});
+              const arr = JSON.parse(out);
+              const hit = arr.find(x => x.title === 'FAMILY_KV');
+              console.log(hit ? hit.id : '');
+            } catch(e) { console.log(''); }
+          ")
+          if [ -z "$EXISTING" ]; then
+            npx -y wrangler@4 kv namespace create FAMILY_KV
+            EXISTING=$(node -e "
+              const { execSync } = require('child_process');
+              const out = execSync('npx -y wrangler@4 kv namespace list', {encoding:'utf8', stdio:['ignore','pipe','ignore']});
+              const arr = JSON.parse(out);
+              const hit = arr.find(x => x.title === 'FAMILY_KV');
+              console.log(hit ? hit.id : '');
+            ")
+          fi
+          if [ -z "$EXISTING" ]; then echo 'KV namespace id not found'; exit 1; fi
+          echo "KV namespace: $EXISTING"
+          sed -i "s/__KV_ID__/$EXISTING/" wrangler.toml
+          cat wrangler.toml
+
+      - name: Deploy worker
+        working-directory: api
+        run: npx -y wrangler@4 deploy
+
+      - name: Set SLIP_CODE secret
+        working-directory: api
+        env:
+          SLIP_CODE: ${{ secrets.SLIP_CODE }}
+        run: |
+          if [ -n "$SLIP_CODE" ]; then
+            printf '%s' "$SLIP_CODE" | npx -y wrangler@4 secret put SLIP_CODE
+          else
+            echo 'SLIP_CODE secret not set, skipping'
+          fi
