@@ -748,7 +748,7 @@
   var wasFull = false;
 
   /* ---- server sync (family-shared schedule) ---- */
-  var API = 'https://family-plan-api.xiaoxue221323156.workers.dev';
+  var API = 'https://api.yuntilanyue.cn';
   var fetchedDay = {};
   var lastSent = {};
   var saveTimers = {};
@@ -1039,7 +1039,7 @@
   autoTimer = setTimeout(openBook, reduce ? 500 : 2400);
 
   /* ---- sub-interface: wage slip stays hidden until the special code is entered ---- */
-  var API = 'https://family-plan-api.xiaoxue221323156.workers.dev';
+  var API = 'https://api.yuntilanyue.cn';
   var payToken = '';
   try { payToken = sessionStorage.getItem('pay-token') || ''; } catch(e) {}
   var wageMonth = '2026-11';
